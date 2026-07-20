@@ -2,6 +2,10 @@
 
 **MCfy** is a universal mobile application (Android, iOS, Web) designed to help university students prepare for exams that are held in Multiple Choice Question (MCQ) format. 
 
+## 📲 Download the App (Android)
+You can download the pre-compiled Android APK directly from Expo to install and test on your device:
+👉 **[Download latest MCfy APK](https://expo.dev/accounts/abdulrehman1610/projects/mcfy/builds/e3c5e060-4e48-4cff-98e3-1ec5e59a1302)**
+
 ---
 
 ## 💡 The Story behind MCfy
