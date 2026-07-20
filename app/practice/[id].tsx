@@ -115,39 +115,18 @@ export default function PracticeScreen() {
   }, [id, router, retryIds, limit, shuffleMcqs, shuffleAnswers, timeLimit]);
 
   const handleExit = React.useCallback(() => {
-    const alertButtons = [
-      { text: "Continue", style: "cancel" as const },
-    ];
-
-    if (!retryIds) {
-      alertButtons.push(
-        { 
-          text: "Exit (No Save)", 
-          style: "destructive" as const,
-          onPress: () => router.back()
-        },
-        {
-          text: "Save & Exit",
-          onPress: () => finishQuiz()
-        }
-      );
-    } else {
-      alertButtons.push({
-        text: "Exit",
-        style: "destructive" as const,
-        onPress: () => router.back()
-      });
-    }
-
     Alert.alert(
       "Exit Practice",
-      retryIds 
-        ? "Progress is not saved for mistake review sessions. Exit now?" 
-        : "Do you want to save your current score or exit without saving?",
-      alertButtons,
-      { cancelable: true }
+      "Progress is only saved for full unsorted sessions. Exit now?",
+      [
+        { text: "Continue", style: "cancel" },
+        { 
+          text: "Exit", 
+          onPress: () => router.back()
+        }
+      ]
     );
-  }, [router, retryIds, finishQuiz]);
+  }, [router]);
 
   useEffect(() => {
     const backAction = () => {
@@ -182,46 +161,10 @@ export default function PracticeScreen() {
     }
   };
 
-  // Timer countdown hook
-  useEffect(() => {
-    if (!isTimerActive) return;
-    if (timeLeft <= 0) {
-      Alert.alert(
-        "Time's Up!",
-        "Your practice session timer has expired.",
-        [{ text: "View Results", onPress: () => finishQuiz() }],
-        { cancelable: false }
-      );
-      finishQuiz();
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setTimeLeft(prev => prev - 1);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [isTimerActive, timeLeft]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const finishQuiz = async () => {
     if (!quiz) return;
     setIsTimerActive(false);
     
-    // Compile all incorrect/unanswered question IDs
-    const finalWrongMcqIds = [...wrongMcqIds];
-    const startIndex = isLocked ? currentIndex + 1 : currentIndex;
-    for (let i = startIndex; i < sessionMcqs.length; i++) {
-      if (!finalWrongMcqIds.includes(sessionMcqs[i].id)) {
-        finalWrongMcqIds.push(sessionMcqs[i].id);
-      }
-    }
-
     const result = {
       totalAttempted: sessionMcqs.length,
       correctAnswers: score,
@@ -254,10 +197,37 @@ export default function PracticeScreen() {
         timeSpent: String(result.timeSpent),
         quizName: quiz.name,
         quizId: quiz.id,
-        wrongMcqIds: finalWrongMcqIds.join(','),
+        wrongMcqIds: wrongMcqIds.join(','),
         isRetryMode: retryIds ? "true" : "false"
       }
     });
+  };
+
+  // Timer countdown hook
+  useEffect(() => {
+    if (!isTimerActive) return;
+    if (timeLeft <= 0) {
+      Alert.alert(
+        "Time's Up!",
+        "Your practice session timer has expired.",
+        [{ text: "View Results", onPress: () => finishQuiz() }],
+        { cancelable: false }
+      );
+      finishQuiz();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setTimeLeft(prev => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [isTimerActive, timeLeft]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (!quiz) {

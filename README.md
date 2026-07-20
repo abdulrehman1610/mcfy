@@ -27,10 +27,6 @@ However, there wasn't a convenient way to practice these questions on the go. **
 * Includes a dynamic urgency warning (highlighting the timer in red when there's under 1 minute remaining).
 * Auto-submits your progress safely if the timer hits `00:00`.
 
-### 💾 Early Exit "Save & Exit"
-* Exit standard practice sessions early without losing your statistics.
-* Choose **Save & Exit** to grade currently completed questions and log unanswered questions as incorrect/unattempted.
-
 ### 🔄 Re-Shuffling & Shuffling
 * Shuffle both the question list and the option keys (`A`, `B`, `C`, `D`) for every session.
 * Tap the restart button inside a practice screen to completely re-shuffle both options and questions on the fly.

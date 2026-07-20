@@ -59,6 +59,12 @@
         "projectId": "14d49921-5636-4487-9368-980892d0d65b"
       }
     },
-    "owner": "abdulrehman1610"
+    "owner": "abdulrehman1610",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/14d49921-5636-4487-9368-980892d0d65b"
+    }
   }
 }
