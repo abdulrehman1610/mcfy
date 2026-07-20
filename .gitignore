@@ -1,0 +1,42 @@
+# dependencies
+node_modules/
+
+# Expo / Metro
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+
+# EAS / Native Credentials (should never be checked in)
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+credentials.json
+
+# Local Environment variables
+.env*.local
+
+# Debug files
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# TypeScript compilation info
+*.tsbuildinfo
+
+# Prebuild generated native directories
+/ios/
+/android/
+
+# Agent Scratch / Notes files
+progress.md
+more_features.md
+fix.md
