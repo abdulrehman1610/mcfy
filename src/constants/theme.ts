@@ -29,3 +29,9 @@ export const BorderRadius = {
   xxl: 32,
   full: 9999,
 };
+
+export const Layout = {
+  maxContentWidth: 720,
+  maxModalWidth: 480,
+  maxTabBarWidth: 460,
+};

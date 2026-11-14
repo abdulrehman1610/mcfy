@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, BackHandler } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, BackHandler, Platform, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import Head from 'expo-router/head';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, ChevronRight, RotateCcw, Clock } from 'lucide-react-native';
 import LoadingScreen from '../../src/components/LoadingScreen';
+import { showAppAlert } from '../../src/components/AlertProvider';
 import Animated, { 
   FadeInRight, 
   FadeOutLeft,
 } from 'react-native-reanimated';
 
-import { Colors, Spacing, BorderRadius } from '../../src/constants/theme';
+import { Colors, Spacing, BorderRadius, Layout } from '../../src/constants/theme';
 import { QuizStorage } from '../../src/storage/quizStorage';
 import { QuizCollection, MCQ } from '../../src/types/mcq';
 
@@ -40,24 +42,50 @@ export default function PracticeScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<"A" | "B" | "C" | "D" | null>(null);
   const [isLocked, setIsLocked] = useState(false);
-  const [score, setScore] = useState(0);
-  const [wrongMcqIds, setWrongMcqIds] = useState<string[]>([]);
-  const [startTime] = useState(Date.now());
 
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
 
+  const scoreRef = useRef(0);
+  const wrongMcqIdsRef = useRef<string[]>([]);
+  const startTimeRef = useRef(Date.now());
+  const hasFinishedRef = useRef(false);
+
+  const goBackOrHome = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
+  }, [router]);
+
   useEffect(() => {
+    let active = true;
     const loadQuiz = async () => {
+      if (!id) {
+        showAppAlert("Error", "Quiz not found.", [
+          { text: "OK", onPress: goBackOrHome },
+        ]);
+        return;
+      }
+
       const data = await QuizStorage.getQuizById(id);
+      if (!active) return;
+
       if (data) {
         setQuiz(data);
+        hasFinishedRef.current = false;
+        scoreRef.current = 0;
+        wrongMcqIdsRef.current = [];
+        startTimeRef.current = Date.now();
+        setSelectedOption(null);
+        setIsLocked(false);
         
         let targetMcqs: MCQ[] = [];
 
         // 1. Determine base MCQ set
         if (retryIds) {
-          const idsToRetry = retryIds.split(',');
+          const idsToRetry = retryIds.split(',').filter(Boolean);
           targetMcqs = data.mcqs.filter(m => idsToRetry.includes(m.id));
         } else {
           targetMcqs = [...data.mcqs];
@@ -70,7 +98,7 @@ export default function PracticeScreen() {
 
         // 3. Apply limit if provided
         if (limit) {
-          const count = parseInt(limit);
+          const count = parseInt(limit, 10);
           if (!isNaN(count)) {
             targetMcqs = targetMcqs.slice(0, count);
           }
@@ -90,11 +118,13 @@ export default function PracticeScreen() {
             optionMap[mcq.id] = shuffleArray(["A", "B", "C", "D"] as ("A" | "B" | "C" | "D")[]);
           });
           setShuffledOptionsMap(optionMap);
+        } else {
+          setShuffledOptionsMap({});
         }
 
         // Initialize Timer
         if (timeLimit) {
-          const limitSec = parseInt(timeLimit);
+          const limitSec = parseInt(timeLimit, 10);
           if (!isNaN(limitSec) && limitSec > 0) {
             setTimeLeft(limitSec);
             setIsTimerActive(true);
@@ -107,28 +137,34 @@ export default function PracticeScreen() {
 
         setCurrentIndex(0);
       } else {
-        Alert.alert("Error", "Quiz not found.");
-        router.back();
+        showAppAlert("Error", "Quiz not found.", [
+          { text: "OK", onPress: goBackOrHome },
+        ]);
       }
     };
     loadQuiz();
-  }, [id, router, retryIds, limit, shuffleMcqs, shuffleAnswers, timeLimit]);
+    return () => {
+      active = false;
+    };
+  }, [id, goBackOrHome, retryIds, limit, shuffleMcqs, shuffleAnswers, timeLimit]);
 
-  const handleExit = React.useCallback(() => {
-    Alert.alert(
+  const handleExit = useCallback(() => {
+    showAppAlert(
       "Exit Practice",
       "Progress is only saved for full unsorted sessions. Exit now?",
       [
         { text: "Continue", style: "cancel" },
         { 
-          text: "Exit", 
-          onPress: () => router.back()
+          text: "Exit",
+          style: "destructive",
+          onPress: goBackOrHome
         }
       ]
     );
-  }, [router]);
+  }, [goBackOrHome]);
 
   useEffect(() => {
+    if (Platform.OS === "web") return;
     const backAction = () => {
       handleExit();
       return true;
@@ -145,38 +181,34 @@ export default function PracticeScreen() {
     
     const currentMCQ = sessionMcqs[currentIndex];
     if (option === currentMCQ.correctAnswer) {
-      setScore(prev => prev + 1);
+      scoreRef.current += 1;
     } else {
-      setWrongMcqIds(prev => [...prev, currentMCQ.id]);
+      wrongMcqIdsRef.current = [...wrongMcqIdsRef.current, currentMCQ.id];
     }
   };
 
-  const nextQuestion = () => {
-    if (currentIndex < sessionMcqs.length - 1) {
-      setCurrentIndex(prev => prev + 1);
-      setSelectedOption(null);
-      setIsLocked(false);
-    } else {
-      finishQuiz();
-    }
-  };
-
-  const finishQuiz = async () => {
-    if (!quiz) return;
+  const finishQuiz = useCallback(async (timedOut = false) => {
+    if (!quiz || hasFinishedRef.current) return;
+    hasFinishedRef.current = true;
     setIsTimerActive(false);
-    
+
+    const totalAttempted = sessionMcqs.length;
+    const finalScore = scoreRef.current;
+    const finalWrongIds = wrongMcqIdsRef.current;
+    const accuracy = totalAttempted > 0 ? (finalScore / totalAttempted) * 100 : 0;
+
     const result = {
-      totalAttempted: sessionMcqs.length,
-      correctAnswers: score,
-      incorrectAnswers: sessionMcqs.length - score,
-      accuracy: (score / sessionMcqs.length) * 100,
-      timeSpent: (Date.now() - startTime) / 1000,
+      totalAttempted,
+      correctAnswers: finalScore,
+      incorrectAnswers: totalAttempted - finalScore,
+      accuracy,
+      timeSpent: (Date.now() - startTimeRef.current) / 1000,
       completedAt: Date.now(),
     };
 
     // Only update global stats if it's a "standard" (not retry) session
-    if (!retryIds) {
-      await QuizStorage.updateStats(result);
+    if (!retryIds && totalAttempted > 0) {
+      await QuizStorage.updateStats(result, quiz.id);
       
       // Always update quiz with last score
       await QuizStorage.saveQuiz({ 
@@ -197,23 +229,28 @@ export default function PracticeScreen() {
         timeSpent: String(result.timeSpent),
         quizName: quiz.name,
         quizId: quiz.id,
-        wrongMcqIds: wrongMcqIds.join(','),
-        isRetryMode: retryIds ? "true" : "false"
+        wrongMcqIds: finalWrongIds.join(','),
+        isRetryMode: retryIds ? "true" : "false",
+        timedOut: timedOut ? "true" : "false",
       }
     });
+  }, [quiz, sessionMcqs.length, retryIds, router]);
+
+  const nextQuestion = () => {
+    if (currentIndex < sessionMcqs.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+      setSelectedOption(null);
+      setIsLocked(false);
+    } else {
+      finishQuiz(false);
+    }
   };
 
   // Timer countdown hook
   useEffect(() => {
     if (!isTimerActive) return;
     if (timeLeft <= 0) {
-      Alert.alert(
-        "Time's Up!",
-        "Your practice session timer has expired.",
-        [{ text: "View Results", onPress: () => finishQuiz() }],
-        { cancelable: false }
-      );
-      finishQuiz();
+      finishQuiz(true);
       return;
     }
 
@@ -222,7 +259,7 @@ export default function PracticeScreen() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [isTimerActive, timeLeft]);
+  }, [isTimerActive, timeLeft, finishQuiz]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -242,7 +279,7 @@ export default function PracticeScreen() {
           <Text style={styles.errorSubtitle}>
             There are no questions in this practice session. If you were retrying mistakes, they might have been cleared or resolved!
           </Text>
-          <TouchableOpacity style={styles.errorBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.errorBtn} onPress={goBackOrHome}>
             <Text style={styles.errorBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -260,9 +297,16 @@ export default function PracticeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Head>
+        <title>{retryIds ? 'Retrying Mistakes — MCfy' : `${quiz.name} — MCfy`}</title>
+      </Head>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleExit} style={styles.headerIcon}>
+        <TouchableOpacity
+          onPress={handleExit}
+          style={styles.headerIcon}
+          accessibilityLabel="Exit practice"
+        >
           <X color={Colors.text} size={24} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
@@ -286,11 +330,13 @@ export default function PracticeScreen() {
         </View>
         <TouchableOpacity 
           onPress={() => {
+            hasFinishedRef.current = false;
+            scoreRef.current = 0;
+            wrongMcqIdsRef.current = [];
+            startTimeRef.current = Date.now();
             setCurrentIndex(0);
             setSelectedOption(null);
             setIsLocked(false);
-            setScore(0);
-            setWrongMcqIds([]);
 
             // Re-shuffle options if requested
             if (shuffleAnswers === "true" && sessionMcqs.length > 0) {
@@ -307,13 +353,15 @@ export default function PracticeScreen() {
             }
 
             if (timeLimit) {
-              const limitSec = parseInt(timeLimit);
+              const limitSec = parseInt(timeLimit, 10);
               if (!isNaN(limitSec) && limitSec > 0) {
                 setTimeLeft(limitSec);
+                setIsTimerActive(true);
               }
             }
           }} 
           style={styles.headerIcon}
+          accessibilityLabel="Restart practice"
         >
           <RotateCcw color={Colors.textSecondary} size={20} />
         </TouchableOpacity>
@@ -325,11 +373,15 @@ export default function PracticeScreen() {
       </View>
 
       {/* Question Card */}
-      <View style={styles.main}>
+      <ScrollView
+        style={styles.main}
+        contentContainerStyle={styles.mainContent}
+        showsVerticalScrollIndicator={false}
+      >
         <Animated.View 
           key={currentIndex}
-          entering={FadeInRight.duration(400)}
-          exiting={FadeOutLeft.duration(400)}
+          entering={FadeInRight.duration(350)}
+          exiting={Platform.OS === 'web' ? undefined : FadeOutLeft.duration(350)}
           style={styles.questionCard}
         >
           <View style={styles.qHeader}>
@@ -372,6 +424,7 @@ export default function PracticeScreen() {
                   style={[styles.optionItem, { backgroundColor, borderColor }]}
                   onPress={() => handleOptionSelect(key)}
                   activeOpacity={0.8}
+                  disabled={isLocked}
                 >
                   <View style={[styles.optionIcon, { backgroundColor: iconBg }]}>
                     <Text style={[styles.optionIconText, { color: iconTextColor }]}>{key}</Text>
@@ -382,7 +435,7 @@ export default function PracticeScreen() {
             })}
           </View>
         </Animated.View>
-      </View>
+      </ScrollView>
 
       {/* Footer Navigation */}
       <View style={styles.footer}>
@@ -411,6 +464,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.md,
     gap: Spacing.sm,
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
   },
   headerIcon: {
     width: 44,
@@ -442,6 +498,8 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: Colors.border,
     width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
   },
   progressBarFill: {
     height: '100%',
@@ -449,7 +507,13 @@ const styles = StyleSheet.create({
   },
   main: {
     flex: 1,
+  },
+  mainContent: {
     padding: Spacing.lg,
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
+    flexGrow: 1,
   },
   questionCard: {
     flex: 1,
@@ -505,6 +569,9 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing.xl,
     gap: Spacing.md,
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
   },
   nextBtn: {
     flex: 1,

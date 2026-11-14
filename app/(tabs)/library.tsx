@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, RefreshControl, Modal, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput, Platform, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
+import Head from 'expo-router/head';
 import { Trash2, Calendar, BookOpen, ChevronRight, Shuffle, Check, Clock } from 'lucide-react-native';
 
-import { Colors, Spacing, BorderRadius } from '../../src/constants/theme';
+import { Colors, Spacing, BorderRadius, Layout } from '../../src/constants/theme';
 import { QuizStorage } from '../../src/storage/quizStorage';
+import { showAppAlert } from '../../src/components/AlertProvider';
 import { QuizCollection } from '../../src/types/mcq';
 
 export default function LibraryScreen() {
@@ -44,9 +46,9 @@ export default function LibraryScreen() {
   const startPractice = () => {
     if (!selectedQuiz) return;
     
-    const count = parseInt(questionCount || "1");
+    const count = parseInt(questionCount || "1", 10);
     if (isNaN(count) || count <= 0) {
-      Alert.alert("Invalid Input", "Please enter a valid number of questions.");
+      showAppAlert("Invalid Input", "Please enter a valid number of questions.");
       return;
     }
     
@@ -54,9 +56,9 @@ export default function LibraryScreen() {
     
     let finalTimeLimit = 0;
     if (isTimerEnabled) {
-      const minutes = parseInt(timerDuration);
+      const minutes = parseInt(timerDuration, 10);
       if (isNaN(minutes) || minutes <= 0) {
-        Alert.alert("Invalid Input", "Please enter a valid number of minutes for the timer.");
+        showAppAlert("Invalid Input", "Please enter a valid number of minutes for the timer.");
         return;
       }
       finalTimeLimit = minutes * 60;
@@ -76,7 +78,7 @@ export default function LibraryScreen() {
   };
 
   const handleDelete = (id: string, name: string) => {
-    Alert.alert(
+    showAppAlert(
       "Delete Quiz",
       `Are you sure you want to delete "${name}"?`,
       [
@@ -94,60 +96,68 @@ export default function LibraryScreen() {
   };
 
   const renderQuizItem = ({ item }: { item: QuizCollection }) => (
-    <TouchableOpacity 
-      style={styles.quizCard}
-      onPress={() => handleOpenSetup(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.quizHeader}>
-        <View style={styles.iconContainer}>
-          <BookOpen size={20} color={Colors.primary} />
+    <View style={styles.quizCard}>
+      <TouchableOpacity 
+        style={styles.quizCardTouchable}
+        onPress={() => handleOpenSetup(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.quizHeader}>
+          <View style={styles.iconContainer}>
+            <BookOpen size={20} color={Colors.primary} />
+          </View>
         </View>
-        <TouchableOpacity 
-          style={styles.deleteButton}
-          onPress={() => handleDelete(item.id, item.name)}
-        >
-          <Trash2 size={18} color={Colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
 
-      <Text style={styles.quizName} numberOfLines={1}>{item.name}</Text>
-      
-      <View style={styles.metaContainer}>
-        <View style={styles.metaItem}>
-          <Calendar size={14} color={Colors.textSecondary} />
-          <Text style={styles.metaText}>{new Date(item.importedAt).toLocaleDateString()}</Text>
+        <Text style={styles.quizName} numberOfLines={1}>{item.name}</Text>
+        
+        <View style={styles.metaContainer}>
+          <View style={styles.metaItem}>
+            <Calendar size={14} color={Colors.textSecondary} />
+            <Text style={styles.metaText}>{new Date(item.importedAt).toLocaleDateString()}</Text>
+          </View>
+          <View style={styles.metaDivider} />
+          <Text style={styles.metaText}>{item.mcqs.length} Questions</Text>
         </View>
-        <View style={styles.metaDivider} />
-        <Text style={styles.metaText}>{item.mcqs.length} Questions</Text>
-      </View>
 
-      <View style={styles.progressSection}>
-        <View style={styles.progressInfo}>
-          <Text style={styles.progressLabel}>Last Performance</Text>
-          <Text style={[styles.progressValue, { color: item.lastScore !== undefined ? Colors.success : Colors.textSecondary }]}>
-            {item.lastScore !== undefined ? `${item.lastScore.toFixed(0)}%` : 'Not started'}
-          </Text>
+        <View style={styles.progressSection}>
+          <View style={styles.progressInfo}>
+            <Text style={styles.progressLabel}>Last Performance</Text>
+            <Text style={[styles.progressValue, { color: item.lastScore !== undefined ? Colors.success : Colors.textSecondary }]}>
+              {item.lastScore !== undefined ? `${item.lastScore.toFixed(0)}%` : 'Not started'}
+            </Text>
+          </View>
+          <View style={styles.progressBarBg}>
+            <View 
+              style={[
+                styles.progressBarFill, 
+                { width: `${item.lastScore || 0}%`, backgroundColor: item.lastScore !== undefined ? Colors.success : Colors.border }
+              ]} 
+            />
+          </View>
         </View>
-        <View style={styles.progressBarBg}>
-          <View 
-            style={[
-              styles.progressBarFill, 
-              { width: `${item.lastScore || 0}%`, backgroundColor: item.lastScore !== undefined ? Colors.success : Colors.border }
-            ]} 
-          />
-        </View>
-      </View>
 
-      <View style={styles.cardFooter}>
-        <Text style={styles.practiceText}>Configure & Start</Text>
-        <ChevronRight size={16} color={Colors.primary} />
-      </View>
-    </TouchableOpacity>
+        <View style={styles.cardFooter}>
+          <Text style={styles.practiceText}>Configure & Start</Text>
+          <ChevronRight size={16} color={Colors.primary} />
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.deleteButton}
+        onPress={() => handleDelete(item.id, item.name)}
+        hitSlop={8}
+        accessibilityLabel={`Delete ${item.name}`}
+      >
+        <Trash2 size={18} color={Colors.textSecondary} />
+      </TouchableOpacity>
+    </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
+      <Head>
+        <title>Library — MCfy</title>
+      </Head>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Library</Text>
         <Text style={styles.headerSubtitle}>{quizzes.length} quiz sets available</Text>
@@ -162,7 +172,7 @@ export default function LibraryScreen() {
           <Text style={styles.emptySubtitle}>Import your first AIKEN file to start practicing and tracking your scores.</Text>
           <TouchableOpacity 
             style={styles.importButton}
-            onPress={() => router.push("/")}
+            onPress={() => router.navigate("/")}
           >
             <Text style={styles.importButtonText}>Import Now</Text>
           </TouchableOpacity>
@@ -186,102 +196,110 @@ export default function LibraryScreen() {
         animationType="fade"
         onRequestClose={() => setSetupModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Practice Settings</Text>
-            <Text style={styles.modalSubtitle}>{selectedQuiz?.name}</Text>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setSetupModalVisible(false)}
+        >
+          <Pressable
+            style={styles.modalContent}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+              <Text style={styles.modalTitle}>Practice Settings</Text>
+              <Text style={styles.modalSubtitle}>{selectedQuiz?.name}</Text>
 
-            <View style={styles.setupSection}>
-              <Text style={styles.inputLabel}>Questions to practice</Text>
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.modalInput}
-                  value={questionCount}
-                  onChangeText={setQuestionCount}
-                  keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
-                  placeholder="Count"
-                  placeholderTextColor={Colors.textSecondary}
-                />
-                <Text style={styles.inputMax}>/ {selectedQuiz?.mcqs.length}</Text>
-              </View>
-              {selectedQuiz && parseInt(questionCount || "0") > selectedQuiz.mcqs.length && (
-                <Text style={styles.inputHelperError}>
-                  Value exceeds maximum ({selectedQuiz.mcqs.length}). It will be capped.
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.optionsSection}>
-              <TouchableOpacity 
-                style={styles.optionRow}
-                onPress={() => setShuffleMcqs(!shuffleMcqs)}
-              >
-                <View style={styles.optionInfo}>
-                  <Shuffle size={20} color={shuffleMcqs ? Colors.primary : Colors.textSecondary} />
-                  <Text style={[styles.optionLabel, shuffleMcqs && { color: Colors.text }]}>Shuffle Questions</Text>
-                </View>
-                <View style={[styles.checkbox, shuffleMcqs && styles.checkboxActive]}>
-                  {shuffleMcqs && <Check size={14} color="black" strokeWidth={3} />}
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.optionRow}
-                onPress={() => setShuffleAnswers(!shuffleAnswers)}
-              >
-                <View style={styles.optionInfo}>
-                  <Shuffle size={20} color={shuffleAnswers ? Colors.primary : Colors.textSecondary} />
-                  <Text style={[styles.optionLabel, shuffleAnswers && { color: Colors.text }]}>Shuffle Answers</Text>
-                </View>
-                <View style={[styles.checkbox, shuffleAnswers && styles.checkboxActive]}>
-                  {shuffleAnswers && <Check size={14} color="black" strokeWidth={3} />}
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.optionRow}
-                onPress={() => setIsTimerEnabled(!isTimerEnabled)}
-              >
-                <View style={styles.optionInfo}>
-                  <Clock size={20} color={isTimerEnabled ? Colors.primary : Colors.textSecondary} />
-                  <Text style={[styles.optionLabel, isTimerEnabled && { color: Colors.text }]}>Time Limit</Text>
-                </View>
-                <View style={[styles.checkbox, isTimerEnabled && styles.checkboxActive]}>
-                  {isTimerEnabled && <Check size={14} color="black" strokeWidth={3} />}
-                </View>
-              </TouchableOpacity>
-
-              {isTimerEnabled && (
-                <View style={styles.timerInputContainer}>
-                  <Text style={styles.timerInputLabel}>Minutes</Text>
+              <View style={styles.setupSection}>
+                <Text style={styles.inputLabel}>Questions to practice</Text>
+                <View style={styles.inputContainer}>
                   <TextInput
-                    style={styles.timerInput}
-                    value={timerDuration}
-                    onChangeText={setTimerDuration}
+                    style={styles.modalInput}
+                    value={questionCount}
+                    onChangeText={setQuestionCount}
                     keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
-                    placeholder="15"
+                    placeholder="Count"
                     placeholderTextColor={Colors.textSecondary}
                   />
+                  <Text style={styles.inputMax}>/ {selectedQuiz?.mcqs.length}</Text>
                 </View>
-              )}
-            </View>
+                {selectedQuiz && parseInt(questionCount || "0", 10) > selectedQuiz.mcqs.length && (
+                  <Text style={styles.inputHelperError}>
+                    Value exceeds maximum ({selectedQuiz.mcqs.length}). It will be capped.
+                  </Text>
+                )}
+              </View>
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={styles.cancelBtn}
-                onPress={() => setSetupModalVisible(false)}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.startBtn}
-                onPress={startPractice}
-              >
-                <Text style={styles.startBtnText}>Start Session</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+              <View style={styles.optionsSection}>
+                <TouchableOpacity 
+                  style={styles.optionRow}
+                  onPress={() => setShuffleMcqs(!shuffleMcqs)}
+                >
+                  <View style={styles.optionInfo}>
+                    <Shuffle size={20} color={shuffleMcqs ? Colors.primary : Colors.textSecondary} />
+                    <Text style={[styles.optionLabel, shuffleMcqs && { color: Colors.text }]}>Shuffle Questions</Text>
+                  </View>
+                  <View style={[styles.checkbox, shuffleMcqs && styles.checkboxActive]}>
+                    {shuffleMcqs && <Check size={14} color="black" strokeWidth={3} />}
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.optionRow}
+                  onPress={() => setShuffleAnswers(!shuffleAnswers)}
+                >
+                  <View style={styles.optionInfo}>
+                    <Shuffle size={20} color={shuffleAnswers ? Colors.primary : Colors.textSecondary} />
+                    <Text style={[styles.optionLabel, shuffleAnswers && { color: Colors.text }]}>Shuffle Answers</Text>
+                  </View>
+                  <View style={[styles.checkbox, shuffleAnswers && styles.checkboxActive]}>
+                    {shuffleAnswers && <Check size={14} color="black" strokeWidth={3} />}
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.optionRow}
+                  onPress={() => setIsTimerEnabled(!isTimerEnabled)}
+                >
+                  <View style={styles.optionInfo}>
+                    <Clock size={20} color={isTimerEnabled ? Colors.primary : Colors.textSecondary} />
+                    <Text style={[styles.optionLabel, isTimerEnabled && { color: Colors.text }]}>Time Limit</Text>
+                  </View>
+                  <View style={[styles.checkbox, isTimerEnabled && styles.checkboxActive]}>
+                    {isTimerEnabled && <Check size={14} color="black" strokeWidth={3} />}
+                  </View>
+                </TouchableOpacity>
+
+                {isTimerEnabled && (
+                  <View style={styles.timerInputContainer}>
+                    <Text style={styles.timerInputLabel}>Minutes</Text>
+                    <TextInput
+                      style={styles.timerInput}
+                      value={timerDuration}
+                      onChangeText={setTimerDuration}
+                      keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
+                      placeholder="15"
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity 
+                  style={styles.cancelBtn}
+                  onPress={() => setSetupModalVisible(false)}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.startBtn}
+                  onPress={startPractice}
+                >
+                  <Text style={styles.startBtnText}>Start Session</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
       </Modal>
     </SafeAreaView>
   );
@@ -295,6 +313,9 @@ const styles = StyleSheet.create({
   header: {
     padding: Spacing.lg,
     paddingBottom: Spacing.md,
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
   },
   headerTitle: {
     color: Colors.text,
@@ -309,14 +330,20 @@ const styles = StyleSheet.create({
   listContent: {
     padding: Spacing.lg,
     paddingBottom: 120,
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
   },
   quizCard: {
     backgroundColor: Colors.card,
     borderRadius: BorderRadius.xl,
-    padding: Spacing.lg,
     marginBottom: Spacing.lg,
     borderWidth: 1,
     borderColor: Colors.border,
+    position: 'relative',
+  },
+  quizCardTouchable: {
+    padding: Spacing.lg,
   },
   quizHeader: {
     flexDirection: 'row',
@@ -333,7 +360,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteButton: {
+    position: 'absolute',
+    top: Spacing.lg,
+    right: Spacing.lg,
     padding: Spacing.xs,
+    zIndex: 2,
   },
   quizName: {
     color: Colors.text,
@@ -406,6 +437,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing.xxl,
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
   },
   emptyIconContainer: {
     width: 80,
@@ -448,11 +482,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.xl,
+    padding: Spacing.lg,
   },
   modalContent: {
     backgroundColor: Colors.card,
     width: '100%',
+    maxWidth: Layout.maxModalWidth,
+    maxHeight: '90%',
     borderRadius: BorderRadius.xxl,
     padding: Spacing.xl,
     borderWidth: 1,

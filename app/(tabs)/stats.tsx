@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
+import Head from 'expo-router/head';
 import { BarChart3, TrendingUp, Award, Flame, Zap, Target } from 'lucide-react-native';
 
-import { Colors, Spacing, BorderRadius } from '../../src/constants/theme';
+import { Colors, Spacing, BorderRadius, Layout } from '../../src/constants/theme';
 import { QuizStorage, UserStats } from '../../src/storage/quizStorage';
 
 export default function StatisticsScreen() {
@@ -70,6 +71,9 @@ export default function StatisticsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Head>
+        <title>Analytics — MCfy</title>
+      </Head>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Analytics</Text>
         <Text style={styles.headerSubtitle}>Tracking your academic growth</Text>
@@ -165,6 +169,9 @@ const styles = StyleSheet.create({
   header: {
     padding: Spacing.lg,
     paddingBottom: Spacing.md,
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
   },
   headerTitle: {
     color: Colors.text,
@@ -178,6 +185,9 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.lg,
     paddingBottom: 120,
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
   },
   mainScoreSection: {
     backgroundColor: Colors.card,
@@ -242,7 +252,9 @@ const styles = StyleSheet.create({
   },
   statCard: {
     backgroundColor: Colors.card,
-    width: '47.5%',
+    flexBasis: '45%',
+    flexGrow: 1,
+    minWidth: 140,
     padding: Spacing.lg,
     borderRadius: BorderRadius.xl,
     flexDirection: 'row',
@@ -298,6 +310,7 @@ const styles = StyleSheet.create({
     height: 140,
   },
   barGroup: {
+    flex: 1,
     alignItems: 'center',
     gap: Spacing.sm,
   },

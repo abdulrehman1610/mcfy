@@ -1,12 +1,14 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Platform } from 'react-native';
 import { Home, Library, BarChart2 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../src/constants/theme';
+import { Colors, Layout } from '../../src/constants/theme';
 import { HapticTab } from '../../components/haptic-tab';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const bottomOffset = insets.bottom > 0 ? insets.bottom + 8 : 24;
 
   return (
     <Tabs
@@ -16,10 +18,17 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
         tabBarStyle: {
           backgroundColor: Colors.card,
-          borderTopColor: 'transparent',
+          borderTopColor: Colors.border,
           height: 64,
-          marginBottom: insets.bottom > 0 ? insets.bottom + 8 : 24,
-          marginHorizontal: 24,
+          bottom: bottomOffset,
+          left: 24,
+          right: 24,
+          ...(Platform.OS === 'web'
+            ? {
+                maxWidth: Layout.maxTabBarWidth,
+                marginHorizontal: 'auto' as any,
+              }
+            : {}),
           borderRadius: 32,
           borderWidth: 1,
           borderColor: Colors.border,

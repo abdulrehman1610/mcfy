@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import Head from 'expo-router/head';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Trophy, Home, RotateCcw, Clock, Target, CheckCircle2, XCircle, AlertCircle } from 'lucide-react-native';
 import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
 
-import { Colors, Spacing, BorderRadius } from '../src/constants/theme';
+import { Colors, Spacing, BorderRadius, Layout } from '../src/constants/theme';
 
 export default function ResultsScreen() {
   const router = useRouter();
@@ -19,14 +20,16 @@ export default function ResultsScreen() {
     quizId: string;
     wrongMcqIds: string;
     isRetryMode: string;
+    timedOut?: string;
   }>();
 
-  const total = parseInt(params.totalAttempted || "0");
-  const correct = parseInt(params.correctAnswers || "0");
+  const total = parseInt(params.totalAttempted || "0", 10);
+  const correct = parseInt(params.correctAnswers || "0", 10);
   const accuracy = parseFloat(params.accuracy || "0").toFixed(1);
   const time = parseFloat(params.timeSpent || "0");
-  const wrongIds = params.wrongMcqIds ? params.wrongMcqIds.split(',') : [];
+  const wrongIds = params.wrongMcqIds ? params.wrongMcqIds.split(',').filter(Boolean) : [];
   const isRetryMode = params.isRetryMode === "true";
+  const timedOut = params.timedOut === "true";
   
   const minutes = Math.floor(time / 60);
   const seconds = Math.round(time % 60);
@@ -41,6 +44,9 @@ export default function ResultsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Head>
+        <title>Results — MCfy</title>
+      </Head>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={ZoomIn.delay(200)} style={styles.trophyContainer}>
           <Trophy color={Colors.primary} size={80} fill={Colors.primary} style={{ opacity: 0.2, position: 'absolute' }} />
@@ -51,6 +57,7 @@ export default function ResultsScreen() {
           <Text style={styles.performanceMessage}>{getPerformanceMessage()}</Text>
           <Text style={styles.quizName}>{params.quizName}</Text>
           {isRetryMode && <Text style={styles.retryNote}>Mistake Review Session</Text>}
+          {timedOut && <Text style={styles.timeoutNote}>Time&apos;s Up — Auto-Submitted</Text>}
         </Animated.View>
 
         <View style={styles.mainScoreCard}>
@@ -125,7 +132,12 @@ export default function ResultsScreen() {
 
           <TouchableOpacity 
             style={[styles.actionBtn, styles.homeBtn]}
-            onPress={() => router.replace("/(tabs)")}
+            onPress={() => {
+              if (router.canDismiss()) {
+                router.dismissAll();
+              }
+              router.navigate("/(tabs)");
+            }}
           >
             <Home color={Colors.text} size={20} />
             <Text style={styles.homeBtnText}>Back to Home</Text>
@@ -145,6 +157,9 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     alignItems: 'center',
     paddingBottom: 60,
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
   },
   trophyContainer: {
     width: 120,
@@ -181,6 +196,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textTransform: 'uppercase',
   },
+  timeoutNote: {
+    color: Colors.error,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 6,
+    textTransform: 'uppercase',
+  },
   mainScoreCard: {
     backgroundColor: Colors.card,
     width: '100%',
@@ -208,10 +230,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.md,
     marginBottom: Spacing.xxl,
+    width: '100%',
   },
   statBox: {
     backgroundColor: Colors.card,
-    width: '47.5%',
+    flexBasis: '45%',
+    flexGrow: 1,
+    minWidth: 140,
     padding: Spacing.lg,
     borderRadius: BorderRadius.xl,
     flexDirection: 'row',

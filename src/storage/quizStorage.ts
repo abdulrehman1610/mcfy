@@ -1,5 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 import { QuizCollection, QuizResult } from "../types/mcq";
+
+const isWebServerRender = () =>
+  Platform.OS === "web" && typeof window === "undefined";
 
 const STORAGE_KEYS = {
   QUIZZES: "mcfy_quizzes",
@@ -34,6 +38,7 @@ export const QuizStorage = {
    * Get all saved quiz collections
    */
   async getAllQuizzes(): Promise<QuizCollection[]> {
+    if (isWebServerRender()) return [];
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.QUIZZES);
       return data ? JSON.parse(data) : [];
@@ -116,15 +121,23 @@ export const QuizStorage = {
         totalQuizzesCompleted: stats.totalQuizzesCompleted + 1,
         totalMCQsSolved: newTotalMCQsSolved,
         totalCorrect: newTotalCorrect,
-        overallAccuracy: (newTotalCorrect / newTotalMCQsSolved) * 100,
-        bestScore: Math.max(stats.bestScore, (result.correctAnswers / result.totalAttempted) * 100),
+        overallAccuracy:
+          newTotalMCQsSolved > 0
+            ? (newTotalCorrect / newTotalMCQsSolved) * 100
+            : 0,
+        bestScore: Math.max(
+          stats.bestScore,
+          result.totalAttempted > 0
+            ? (result.correctAnswers / result.totalAttempted) * 100
+            : 0
+        ),
         lastActive: Date.now(),
         dailyActivity: newDaily,
         lastActiveQuizId: quizId || stats.lastActiveQuizId,
       };
 
-      // Simple streak logic: if lastActive was yesterday, increment streak
-      if (stats.lastActive > 0) {
+      // Streak logic: first completed quiz sets 1; subsequent days increment or reset
+      if (stats.lastActive > 0 && stats.streak > 0) {
         const lastDate = new Date(stats.lastActive).toDateString();
         const todayDate = new Date().toDateString();
         
@@ -158,7 +171,6 @@ export const QuizStorage = {
       await AsyncStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify({
         ...stats,
         lastActiveQuizId: id,
-        lastActive: Date.now(),
       }));
     } catch (error) {
       console.error("Error setting last active quiz:", error);
@@ -169,6 +181,7 @@ export const QuizStorage = {
    * Get user statistics
    */
   async getUserStats(): Promise<UserStats> {
+    if (isWebServerRender()) return INITIAL_STATS;
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.STATS);
       return data ? JSON.parse(data) : INITIAL_STATS;

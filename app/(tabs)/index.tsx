@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FilePlus, Library as LibraryIcon, Play, Trophy, Brain, ChevronRight } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
 import { useRouter, useFocusEffect } from 'expo-router';
+import Head from 'expo-router/head';
 
-import { Colors, Spacing, BorderRadius } from '../../src/constants/theme';
+import { Colors, Spacing, BorderRadius, Layout } from '../../src/constants/theme';
 import { QuizStorage, UserStats } from '../../src/storage/quizStorage';
 import { parseAiken } from '../../src/utils/aikenParser';
+import { readTextFromAsset, setPendingImportContent } from '../../src/utils/fileReader';
+import { showAppAlert } from '../../src/components/AlertProvider';
 import { QuizCollection } from '../../src/types/mcq';
 
 export default function HomeScreen() {
@@ -26,6 +28,8 @@ export default function HomeScreen() {
     if (s.lastActiveQuizId) {
       const lq = q.find(item => item.id === s.lastActiveQuizId);
       setLastQuiz(lq || null);
+    } else {
+      setLastQuiz(null);
     }
   };
 
@@ -38,20 +42,22 @@ export default function HomeScreen() {
   const handleImport = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'text/plain',
+        type: Platform.OS === 'web' ? ['text/plain', '.txt'] : 'text/plain',
         copyToCacheDirectory: true,
       });
 
-      if (result.canceled) return;
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
 
       const file = result.assets[0];
-      const content = await new File(file.uri).text();
+      const content = await readTextFromAsset(file);
       const mcqs = parseAiken(content);
 
       if (mcqs.length === 0) {
-        Alert.alert("Invalid Format", "No valid AIKEN format MCQs found in the selected file.");
+        showAppAlert("Invalid Format", "No valid AIKEN format MCQs found in the selected file.");
         return;
       }
+
+      setPendingImportContent(file.uri, content);
 
       router.push({
         pathname: "/import-preview",
@@ -62,7 +68,7 @@ export default function HomeScreen() {
       });
     } catch (error) {
       console.error("Import error:", error);
-      Alert.alert("Error", "Failed to read the file. Please try again.");
+      showAppAlert("Error", "Failed to read the file. Please try again.");
     }
   };
 
@@ -79,6 +85,9 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Head>
+        <title>MCfy — Practice MCQs on the Go</title>
+      </Head>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Hero Section */}
         <View style={styles.hero}>
@@ -125,7 +134,7 @@ export default function HomeScreen() {
 
           <TouchableOpacity 
             style={[styles.actionCard, { backgroundColor: Colors.card }]}
-            onPress={() => router.push("/library")}
+            onPress={() => router.navigate("/library")}
           >
             <View style={[styles.actionIconContainer, { backgroundColor: '#262626' }]}>
               <LibraryIcon color={Colors.primary} size={24} />
@@ -144,8 +153,8 @@ export default function HomeScreen() {
             <View style={styles.playIconContainer}>
               <Play color="white" size={20} fill="white" />
             </View>
-            <View>
-              <Text style={styles.continueTitle}>
+            <View style={styles.continueTextContainer}>
+              <Text style={styles.continueTitle} numberOfLines={1}>
                 {lastQuiz ? `Continue: ${lastQuiz.name}` : "Continue Practice"}
               </Text>
               <Text style={styles.continueSubtitle}>
@@ -179,6 +188,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: Spacing.lg,
     paddingBottom: 120,
+    width: '100%',
+    maxWidth: Layout.maxContentWidth,
+    alignSelf: 'center',
   },
   hero: {
     flexDirection: 'row',
@@ -305,6 +317,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  continueTextContainer: {
+    flex: 1,
   },
   playIconContainer: {
     backgroundColor: Colors.primary,
