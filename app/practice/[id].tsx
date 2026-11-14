@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, BackHandler, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, BackHandler, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -35,8 +35,174 @@ const buildShuffledOptionsMap = (mcqs: MCQ[]): Record<string, OptionKey[]> => {
   return optionMap;
 };
 
+interface BodyDensityTier {
+  qFontSize: number;
+  qLineHeight: number;
+  qMarginBottom: number;
+  optionsGap: number;
+  optionMinHeight: number;
+  optionPaddingV: number;
+  optionPaddingH: number;
+  optionRadius: number;
+  optionIconSize: number;
+  optionIconFontSize: number;
+  optionFontSize: number;
+  optionLineHeight: number;
+}
+
+const BODY_DENSITY_TIERS: BodyDensityTier[] = [
+  {
+    qFontSize: 22,
+    qLineHeight: 29,
+    qMarginBottom: 20,
+    optionsGap: 12,
+    optionMinHeight: 58,
+    optionPaddingV: 12,
+    optionPaddingH: 16,
+    optionRadius: 20,
+    optionIconSize: 30,
+    optionIconFontSize: 14,
+    optionFontSize: 16,
+    optionLineHeight: 22,
+  },
+  {
+    qFontSize: 19,
+    qLineHeight: 25,
+    qMarginBottom: 14,
+    optionsGap: 10,
+    optionMinHeight: 50,
+    optionPaddingV: 10,
+    optionPaddingH: 14,
+    optionRadius: 16,
+    optionIconSize: 28,
+    optionIconFontSize: 13,
+    optionFontSize: 15,
+    optionLineHeight: 20,
+  },
+  {
+    qFontSize: 17,
+    qLineHeight: 22,
+    qMarginBottom: 10,
+    optionsGap: 8,
+    optionMinHeight: 44,
+    optionPaddingV: 8,
+    optionPaddingH: 12,
+    optionRadius: 14,
+    optionIconSize: 26,
+    optionIconFontSize: 12,
+    optionFontSize: 14,
+    optionLineHeight: 19,
+  },
+  {
+    qFontSize: 15,
+    qLineHeight: 20,
+    qMarginBottom: 8,
+    optionsGap: 6,
+    optionMinHeight: 38,
+    optionPaddingV: 6,
+    optionPaddingH: 10,
+    optionRadius: 12,
+    optionIconSize: 24,
+    optionIconFontSize: 12,
+    optionFontSize: 13,
+    optionLineHeight: 17,
+  },
+];
+
+const getChromeMetrics = (height: number) => {
+  const isShort = height < 720;
+  return {
+    headerPaddingV: isShort ? 8 : 12,
+    headerPaddingH: isShort ? 12 : 16,
+    headerIconSize: isShort ? 38 : 42,
+    contentPaddingH: isShort ? 16 : 20,
+    contentPaddingV: isShort ? 10 : 14,
+    qHeaderMarginBottom: isShort ? 6 : 10,
+    footerPaddingTop: isShort ? 8 : 12,
+    footerPaddingBottom: isShort ? 14 : 20,
+    nextBtnHeight: isShort ? 46 : 52,
+  };
+};
+
+const estimateTierHeight = (
+  tier: BodyDensityTier,
+  innerWidth: number,
+  question: string,
+  optionTexts: string[],
+  twoColumn: boolean
+): number => {
+  const qCharsPerLine = Math.max(18, Math.floor(innerWidth / (tier.qFontSize * 0.58)));
+  const qLines = Math.max(1, Math.ceil(question.length / qCharsPerLine));
+  const qHeight = qLines * tier.qLineHeight + tier.qMarginBottom;
+
+  const colWidth = twoColumn ? (innerWidth - tier.optionsGap) / 2 : innerWidth;
+  const optTextWidth = Math.max(100, colWidth - tier.optionPaddingH * 2 - tier.optionIconSize - 14 - 4);
+  const optCharsPerLine = Math.max(12, Math.floor(optTextWidth / (tier.optionFontSize * 0.55)));
+
+  const itemHeights = optionTexts.map((txt) => {
+    const lines = Math.max(1, Math.ceil(txt.length / optCharsPerLine));
+    return Math.max(tier.optionMinHeight, lines * tier.optionLineHeight + tier.optionPaddingV * 2 + 4);
+  });
+
+  if (!twoColumn) {
+    const sum = itemHeights.reduce((acc, h) => acc + h, 0);
+    return qHeight + sum + Math.max(0, itemHeights.length - 1) * tier.optionsGap;
+  }
+
+  let rowsHeight = 0;
+  for (let i = 0; i < itemHeights.length; i += 2) {
+    const rowH = Math.max(itemHeights[i], itemHeights[i + 1] ?? 0);
+    rowsHeight += rowH + (i > 0 ? tier.optionsGap : 0);
+  }
+  return qHeight + rowsHeight;
+};
+
+const computePracticeLayout = (
+  width: number,
+  height: number,
+  mcq: MCQ,
+  optionKeys: OptionKey[]
+) => {
+  const chrome = getChromeMetrics(height);
+  const safeAreaBuffer = Platform.OS === 'web' ? 12 : 52;
+  const headerH = chrome.headerIconSize + chrome.headerPaddingV * 2;
+  const footerH = chrome.nextBtnHeight + chrome.footerPaddingTop + chrome.footerPaddingBottom;
+  const qLabelH = 16 + chrome.qHeaderMarginBottom;
+  const availableBodyH = Math.max(
+    200,
+    height - safeAreaBuffer - headerH - 4 - footerH - chrome.contentPaddingV * 2 - qLabelH
+  );
+
+  const containerW = Math.min(width, Layout.maxContentWidth);
+  const innerWidth = Math.max(240, containerW - chrome.contentPaddingH * 2);
+  const optionTexts = optionKeys.map((k) => mcq.options[k] ?? '');
+
+  for (const tier of BODY_DENSITY_TIERS) {
+    if (estimateTierHeight(tier, innerWidth, mcq.question, optionTexts, false) <= availableBodyH) {
+      return { chrome, tier, twoColumnOptions: false };
+    }
+  }
+
+  const canUseTwoColumns = width >= 600 && optionKeys.length >= 6;
+  if (canUseTwoColumns) {
+    for (const tier of BODY_DENSITY_TIERS) {
+      if (estimateTierHeight(tier, innerWidth, mcq.question, optionTexts, true) <= availableBodyH) {
+        return { chrome, tier, twoColumnOptions: true };
+      }
+    }
+  }
+
+  const micro = BODY_DENSITY_TIERS[BODY_DENSITY_TIERS.length - 1];
+  return {
+    chrome,
+    tier: micro,
+    twoColumnOptions: canUseTwoColumns,
+  };
+};
+
 export default function PracticeScreen() {
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
   const { id, retryIds, limit, shuffleMcqs, shuffleAnswers, timeLimit } = useLocalSearchParams<{ 
     id: string; 
     retryIds?: string;
@@ -301,19 +467,32 @@ export default function PracticeScreen() {
     ? shuffledOptionsMap[currentMCQ.id] 
     : getOptionKeys(currentMCQ);
 
+  const fitLayout = computePracticeLayout(width, height, currentMCQ, optionsToDisplay);
+  const { chrome, tier, twoColumnOptions } = fitLayout;
+  const headerBtnSizeStyle = {
+    width: chrome.headerIconSize,
+    height: chrome.headerIconSize,
+    borderRadius: chrome.headerIconSize / 2,
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <Head>
         <title>{retryIds ? 'Retrying Mistakes — MCfy' : `${quiz.name} — MCfy`}</title>
       </Head>
       {/* Header */}
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          { paddingVertical: chrome.headerPaddingV, paddingHorizontal: chrome.headerPaddingH },
+        ]}
+      >
         <TouchableOpacity
           onPress={handleExit}
-          style={styles.headerIcon}
+          style={[styles.headerIcon, headerBtnSizeStyle]}
           accessibilityLabel="Exit practice"
         >
-          <X color={Colors.text} size={24} />
+          <X color={Colors.text} size={chrome.headerIconSize < 40 ? 20 : 22} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>
@@ -362,10 +541,10 @@ export default function PracticeScreen() {
               }
             }
           }} 
-          style={styles.headerIcon}
+          style={[styles.headerIcon, headerBtnSizeStyle]}
           accessibilityLabel="Restart practice"
         >
-          <RotateCcw color={Colors.textSecondary} size={20} />
+          <RotateCcw color={Colors.textSecondary} size={chrome.headerIconSize < 40 ? 18 : 20} />
         </TouchableOpacity>
       </View>
 
@@ -377,7 +556,10 @@ export default function PracticeScreen() {
       {/* Question Card */}
       <ScrollView
         style={styles.main}
-        contentContainerStyle={styles.mainContent}
+        contentContainerStyle={[
+          styles.mainContent,
+          { paddingHorizontal: chrome.contentPaddingH, paddingVertical: chrome.contentPaddingV },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View 
@@ -386,12 +568,36 @@ export default function PracticeScreen() {
           exiting={Platform.OS === 'web' ? undefined : FadeOutLeft.duration(350)}
           style={styles.questionCard}
         >
-          <View style={styles.qHeader}>
+          <View style={[styles.qHeader, { marginBottom: chrome.qHeaderMarginBottom }]}>
             <Text style={styles.qLabel}>Question {currentIndex + 1}</Text>
           </View>
-          <Text style={styles.qText}>{currentMCQ.question}</Text>
+          <Text
+            style={[
+              styles.qText,
+              {
+                fontSize: tier.qFontSize,
+                lineHeight: tier.qLineHeight,
+                marginBottom: tier.qMarginBottom,
+              },
+            ]}
+          >
+            {currentMCQ.question}
+          </Text>
           
-          <View style={styles.optionsList}>
+          <View
+            style={[
+              styles.optionsList,
+              twoColumnOptions
+                ? {
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    rowGap: tier.optionsGap,
+                    columnGap: 0,
+                  }
+                : { gap: tier.optionsGap },
+            ]}
+          >
             {optionsToDisplay.map((key) => {
               const isSelected = selectedOption === key;
               const isCorrect = currentMCQ.correctAnswer === key;
@@ -423,15 +629,51 @@ export default function PracticeScreen() {
               return (
                 <TouchableOpacity
                   key={key}
-                  style={[styles.optionItem, { backgroundColor, borderColor }]}
+                  style={[
+                    styles.optionItem,
+                    {
+                      backgroundColor,
+                      borderColor,
+                      minHeight: tier.optionMinHeight,
+                      paddingVertical: tier.optionPaddingV,
+                      paddingHorizontal: tier.optionPaddingH,
+                      borderRadius: tier.optionRadius,
+                    },
+                    twoColumnOptions && styles.optionItemTwoColumn,
+                  ]}
                   onPress={() => handleOptionSelect(key)}
                   activeOpacity={0.8}
                   disabled={isLocked}
                 >
-                  <View style={[styles.optionIcon, { backgroundColor: iconBg }]}>
-                    <Text style={[styles.optionIconText, { color: iconTextColor }]}>{key}</Text>
+                  <View
+                    style={[
+                      styles.optionIcon,
+                      {
+                        backgroundColor: iconBg,
+                        width: tier.optionIconSize,
+                        height: tier.optionIconSize,
+                        borderRadius: Math.max(6, Math.round(tier.optionIconSize * 0.26)),
+                        marginRight: tier.optionPaddingH < 12 ? 10 : 12,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.optionIconText,
+                        { color: iconTextColor, fontSize: tier.optionIconFontSize },
+                      ]}
+                    >
+                      {key}
+                    </Text>
                   </View>
-                  <Text style={styles.optionContent}>{currentMCQ.options[key]}</Text>
+                  <Text
+                    style={[
+                      styles.optionContent,
+                      { fontSize: tier.optionFontSize, lineHeight: tier.optionLineHeight },
+                    ]}
+                  >
+                    {currentMCQ.options[key]}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -440,16 +682,37 @@ export default function PracticeScreen() {
       </ScrollView>
 
       {/* Footer Navigation */}
-      <View style={styles.footer}>
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingHorizontal: chrome.contentPaddingH,
+            paddingTop: chrome.footerPaddingTop,
+            paddingBottom: chrome.footerPaddingBottom,
+          },
+        ]}
+      >
         <TouchableOpacity 
           onPress={nextQuestion}
-          style={[styles.nextBtn, !isLocked && styles.disabledBtn]}
+          style={[
+            styles.nextBtn,
+            {
+              height: chrome.nextBtnHeight,
+              borderRadius: chrome.nextBtnHeight / 2,
+            },
+            !isLocked && styles.disabledBtn,
+          ]}
           disabled={!isLocked}
         >
-          <Text style={styles.nextBtnText}>
+          <Text
+            style={[
+              styles.nextBtnText,
+              { fontSize: chrome.nextBtnHeight < 50 ? 16 : 17 },
+            ]}
+          >
             {currentIndex === sessionMcqs.length - 1 ? "Finish Quiz" : "Next Question"}
           </Text>
-          <ChevronRight color="black" size={20} />
+          <ChevronRight color="black" size={chrome.nextBtnHeight < 50 ? 18 : 20} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -464,16 +727,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.md,
     gap: Spacing.sm,
     width: '100%',
     maxWidth: Layout.maxContentWidth,
     alignSelf: 'center',
   },
   headerIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.card,
@@ -511,7 +770,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mainContent: {
-    padding: Spacing.lg,
     width: '100%',
     maxWidth: Layout.maxContentWidth,
     alignSelf: 'center',
@@ -520,9 +778,7 @@ const styles = StyleSheet.create({
   questionCard: {
     flex: 1,
   },
-  qHeader: {
-    marginBottom: Spacing.md,
-  },
+  qHeader: {},
   qLabel: {
     color: Colors.primary,
     fontSize: 12,
@@ -532,44 +788,31 @@ const styles = StyleSheet.create({
   },
   qText: {
     color: Colors.text,
-    fontSize: 24,
     fontWeight: '700',
-    lineHeight: 34,
-    marginBottom: Spacing.xl,
   },
-  optionsList: {
-    gap: Spacing.md,
-  },
+  optionsList: {},
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.xl,
     borderWidth: 2,
-    minHeight: 68,
+  },
+  optionItemTwoColumn: {
+    width: '48.8%',
   },
   optionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing.md,
   },
   optionIconText: {
     fontWeight: '900',
-    fontSize: 14,
   },
   optionContent: {
     color: Colors.text,
-    fontSize: 16,
     fontWeight: '500',
     flex: 1,
   },
   footer: {
     flexDirection: 'row',
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xl,
     gap: Spacing.md,
     width: '100%',
     maxWidth: Layout.maxContentWidth,
@@ -577,8 +820,6 @@ const styles = StyleSheet.create({
   },
   nextBtn: {
     flex: 1,
-    height: 56,
-    borderRadius: 28,
     backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
@@ -587,7 +828,6 @@ const styles = StyleSheet.create({
   },
   nextBtnText: {
     color: 'black',
-    fontSize: 17,
     fontWeight: '800',
   },
   disabledBtn: {
