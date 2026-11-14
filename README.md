@@ -1,48 +1,36 @@
-# MCfy 👋 — Practice MCQs on the Go
+# MCfy
 
-**MCfy** is a universal mobile application (Android, iOS, Web) designed to help university students prepare for exams that are held in Multiple Choice Question (MCQ) format. 
+**MCfy** is a cross-platform Multiple Choice Question (MCQ) practice application for **Web, Android, and iOS**, built with Expo (React Native) and Expo Router. Import or paste AIKEN-formatted question banks, customize practice sessions, review missed questions, and track accuracy—all with 100% local client-side storage.
 
-## 📲 Download the App (Android)
-You can download the pre-compiled Android APK directly from Expo to install and test on your device:
-👉 **[Download latest MCfy APK](https://expo.dev/accounts/abdulrehman1610/projects/mcfy/builds/e3c5e060-4e48-4cff-98e3-1ec5e59a1302)**
+> **Android Preview Build:** [Download APK via Expo](https://expo.dev/accounts/abdulrehman1610/projects/mcfy/builds/e3c5e060-4e48-4cff-98e3-1ec5e59a1302)
 
 ---
 
-## 💡 The Story behind MCfy
-Many universities are transitioning their examinations to digital systems, holding midterms and finals in MCQ format on Learning Management Systems (LMS) on desktop PCs. While preparing, students often generate reference MCQs from their syllabus using AI (ChatGPT, Claude, etc.). 
+## Features
 
-However, there wasn't a convenient way to practice these questions on the go. **MCfy** was created to solve this gap—allowing anyone to load custom, AI-generated questions into their mobile device and practice them **anytime, anywhere, offline.**
-
----
-
-## 🚀 Core Features
-
-### 📂 Offline AIKEN Format Import
-* Load custom MCQ text files formatted in the industry-standard **AIKEN format**.
-* Parsing is done entirely offline and locally using `expo-document-picker` and `expo-file-system`.
-* Paste AIKEN text directly or import files.
-
-### ⏱️ Configurable Session Timer
-* Toggle an optional countdown timer (configured in minutes) during practice setup to simulate the stress and time pressure of real exams.
-* Includes a dynamic urgency warning (highlighting the timer in red when there's under 1 minute remaining).
-* Auto-submits your progress safely if the timer hits `00:00`.
-
-### 🔄 Re-Shuffling & Shuffling
-* Shuffle both the question list and the option keys (`A`, `B`, `C`, `D`) for every session.
-* Tap the restart button inside a practice screen to completely re-shuffle both options and questions on the fly.
-
-### 🧠 Mistake Targeting (Retry Mode)
-* Missed a question? The app automatically tracks your wrong answers.
-* Launch a **Mistake Review** session to practice and master only the specific questions you got wrong.
-
-### 📈 Stats & Progress Tracker
-* Beautiful dark-themed dashboard summarizing your overall accuracy, completed tests, and active study streaks.
-* Displays a **7-day Study Frequency bar chart** (powered by `react-native-reanimated`) to track daily solved counts.
+- **File Import & Direct Paste (AIKEN Format)**
+  - Import `.txt` files from your device or browser (`expo-document-picker` / `expo-file-system` on native, Web `File` API on browser).
+  - Paste questions directly inside **Paste Questions** with real-time MCQ detection, validation feedback, optional custom collection naming, and one-click clipboard paste on supported browsers.
+  - Supports **2 to 26 options (`A`–`Z`)** per question—not limited to 4 choices.
+- **Fit-to-Screen Adaptive Practice UI**
+  - Dynamically scales typography, spacing, and chrome metrics across density tiers (`useWindowDimensions`) so questions and all options fit within the viewport without unnecessary scrolling on phones, tablets, and desktops.
+  - Automatically switches to a two-column option grid on wider screens (`width >= 600`) when single-column layout overflows for 6+ options, while keeping `ScrollView` as a fallback for unusually long prompts.
+- **Configurable Practice Sessions**
+  - Set question count limits per session.
+  - Independently toggle question shuffling and answer-key shuffling (with live in-session restart/re-shuffle).
+  - Enable an optional countdown timer (in minutes) with a sub-minute urgency indicator and automatic submission when time expires.
+- **Targeted Mistake Review**
+  - Automatically records incorrect answers per session and offers a one-tap **Retry Mistakes** workflow from the results screen.
+- **Progress Analytics**
+  - Tracks overall accuracy, best score, total questions solved/correct, daily study streaks, and a 7-day activity frequency chart.
+- **Local-First Persistence**
+  - Stores collections, sessions, and stats locally via `@react-native-async-storage/async-storage` (backed by `localStorage` on web). No backend or account required.
 
 ---
 
-## 📋 The AIKEN Format Specification
-MCfy parses files formatted in the plain-text **AIKEN format**. This is the standard format used by Moodle and other LMS systems:
+## AIKEN Format Specification
+
+MCfy uses the standard plain-text AIKEN format (commonly used by Moodle and AI-generated study banks):
 
 ```text
 What is the capital of Pakistan?
@@ -52,74 +40,125 @@ C. Islamabad
 D. Peshawar
 ANSWER: C
 
-Which database is non-relational?
-A) MySQL
-B) PostgreSQL
-C) MongoDB
-D) Oracle
-ANSWER: C
+Which HTTP status code indicates rate limiting?
+A) 400 Bad Request
+B) 401 Unauthorized
+C) 403 Forbidden
+D) 404 Not Found
+E) 429 Too Many Requests
+ANSWER: E
 ```
 
-### Format rules:
-1. **Questions** must be on a single line.
-2. **Options** must start with a capital letter followed by a period `.` or parenthesis `)` and a space (e.g., `A. ` or `A) `).
-3. **Answer** must be labeled as `ANSWER: X` (case-insensitive) where `X` is the correct option letter.
-4. Separate question blocks with empty/blank lines.
+### Supported Parser Rules (`src/utils/aikenParser.ts`)
+
+1. **Question stem:** Supports single-line or multi-line question text above the options.
+2. **Options:** Supports **2 to 26 options (`A`–`Z`)** prefixed with `<Letter>. ` or `<Letter>) ` (case-insensitive letter matching, stored and displayed in `A`–`Z` order).
+3. **Answer line:** Must end the question with `ANSWER: X` (case-insensitive), matching one of that question's option letters.
+4. **Question separation:** Questions can be separated by blank lines or placed back-to-back without blank lines between `ANSWER: X` and the next question.
 
 ---
 
-## 🛠️ Developer Setup & Running Locally
+## Project Structure
 
-### 1. Install Dependencies
-Make sure you have Node.js installed. In the root of the project, run:
+```text
+app/
+├── _layout.tsx           # Root Stack router, alert provider, dark theme shell
+├── +html.tsx             # Expo static web HTML document wrapper
+├── (tabs)/
+│   ├── _layout.tsx       # Bottom tab bar (Home, Library, Stats)
+│   ├── index.tsx         # Home dashboard (Import AIKEN, Paste Questions, recent quiz)
+│   ├── library.tsx       # Saved collections & session configuration modal
+│   └── stats.tsx         # Analytics & 7-day activity summary
+├── import-preview.tsx    # Parsed MCQ preview before saving a collection
+├── paste-import.tsx      # Direct text/clipboard AIKEN importer with live parser count
+├── practice/[id].tsx     # Adaptive practice screen with timer & shuffling
+└── results.tsx           # Score breakdown & Retry Mistakes launch
+components/
+└── haptic-tab.tsx        # Tab button wrapper with native haptic feedback
+src/
+├── components/           # Custom AlertProvider & LoadingScreen
+├── constants/            # Shared Colors, Spacing, BorderRadius, Layout tokens
+├── storage/              # QuizStorage & UserStats persistence helpers
+├── types/                # QuizCollection, MCQ, OptionKey TypeScript definitions
+└── utils/                # AIKEN parser (parseAiken) & cross-platform file/paste reader
+public/
+└── index.html            # Web SPA HTML template
+vercel.json               # Vercel static SPA build & rewrite rules
+eas.json                  # EAS build profiles (development, preview, production)
+```
+
+---
+
+## Tech Stack
+
+- **Framework:** Expo SDK 54 (`expo ~54.0.34`), React Native `0.81.5`, React `19.1.0`
+- **Language & Compiler:** TypeScript `~5.9.2`, React Compiler (`experiments.reactCompiler: true`)
+- **Navigation:** Expo Router `~6.0.23` (`typedRoutes: true`, single-output web SPA)
+- **Storage & Files:** `@react-native-async-storage/async-storage`, `expo-document-picker`, `expo-file-system`
+- **UI & Animation:** `lucide-react-native`, `react-native-reanimated`, `react-native-svg`, `react-native-safe-area-context`
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (LTS recommended) and npm
+
+### Installation & Local Development
+
 ```bash
 npm install
-```
-
-### 2. Start the Expo Server
-Start the local bundler:
-```bash
 npx expo start
 ```
-* Press `a` to open the app on an Android Emulator.
-* Press `i` to open the app on an iOS Simulator.
-* Press `w` to open the web version in your browser.
-* Scan the QR code with the **Expo Go** app on your physical device to test it live.
+
+Interactive launcher shortcuts:
+- `w` — Open in browser (`npm run web`)
+- `a` — Open on Android emulator (`npm run android`)
+- `i` — Open on iOS simulator (`npm run ios`)
+- Scan the QR code with **Expo Go** on a physical device
+
+### Quality Checks & Web Export
+
+```bash
+npx tsc --noEmit
+npm run lint
+npx expo export -p web
+```
+
+`npx expo export -p web` compiles the static SPA bundle into `dist/`.
 
 ---
 
-## 📦 Building to APK & iOS (EAS Build)
-MCfy is configured with **EAS (Expo Application Services)** to compile native app bundles.
+## Deployment
 
-### 1. Install EAS CLI & Log In
+### Web (Vercel)
+
+[`vercel.json`](vercel.json) is preconfigured for single-page application routing:
+- **Build Command:** `npx expo export -p web`
+- **Output Directory:** `dist`
+- **Rewrites:** All routes rewrite to `/` so Expo Router handles client-side navigation directly.
+
+Connect the repository in Vercel or deploy using the Vercel CLI—no custom environment variables are required.
+
+### Mobile (EAS Build)
+
+Build profiles are defined in [`eas.json`](eas.json) (`development`, `preview`, `production`):
+
 ```bash
 npm install -g eas-cli
 eas login
-```
 
-### 2. Project Linking
-If you haven't linked the project to your own Expo account:
-```bash
-eas project:init
-```
-
-### 3. Generate Android APK
-To compile a ready-to-install `.apk` file for testing on physical Android devices:
-```bash
+# Internal Android APK build
 eas build --platform android --profile preview
-```
 
-### 4. Generate iOS Simulator Build
-To compile a `.tar.gz` bundle for running on an Xcode Mac Simulator:
-```bash
-eas build --platform ios --profile preview_simulator
+# Internal iOS / development client or store production build
+eas build --platform ios --profile preview
+eas build --platform all --profile production
 ```
 
 ---
 
-## 💻 Tech Stack
-* **Framework:** [Expo SDK 54](https://expo.dev/) (React Native)
-* **Routing:** [Expo Router](https://docs.expo.dev/router/introduction/) (File-based navigation)
-* **Local Storage:** `@react-native-async-storage/async-storage` (All progress is 100% offline)
-* **Graphics & Styling:** `react-native-svg` (Inline responsive vectors), `react-native-reanimated` (Fluid loading & transitions)
-* **Icons:** `lucide-react-native`
+## License
+
+Licensed under the [MIT License](LICENSE).
