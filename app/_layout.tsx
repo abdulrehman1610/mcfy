@@ -80,6 +80,13 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: Colors.background }
               }} 
             />
+            <Stack.Screen 
+              name="paste-import" 
+              options={{ 
+                presentation: 'modal',
+                contentStyle: { backgroundColor: Colors.background }
+              }} 
+            />
           </Stack>
         </View>
       </AlertProvider>

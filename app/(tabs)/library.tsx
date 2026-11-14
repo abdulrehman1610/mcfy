@@ -169,13 +169,21 @@ export default function LibraryScreen() {
             <BookOpen size={48} color={Colors.border} />
           </View>
           <Text style={styles.emptyTitle}>No Quizzes Yet</Text>
-          <Text style={styles.emptySubtitle}>Import your first AIKEN file to start practicing and tracking your scores.</Text>
-          <TouchableOpacity 
-            style={styles.importButton}
-            onPress={() => router.navigate("/")}
-          >
-            <Text style={styles.importButtonText}>Import Now</Text>
-          </TouchableOpacity>
+          <Text style={styles.emptySubtitle}>Import an AIKEN file or paste questions to start practicing and tracking your scores.</Text>
+          <View style={styles.emptyActions}>
+            <TouchableOpacity 
+              style={styles.importButton}
+              onPress={() => router.navigate("/")}
+            >
+              <Text style={styles.importButtonText}>Import File</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.pasteEmptyButton}
+              onPress={() => router.push("/paste-import")}
+            >
+              <Text style={styles.pasteEmptyButtonText}>Paste Questions</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : (
         <FlatList
@@ -465,6 +473,12 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: Spacing.xl,
   },
+  emptyActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: Spacing.md,
+  },
   importButton: {
     backgroundColor: Colors.primary,
     paddingHorizontal: Spacing.xl,
@@ -473,6 +487,19 @@ const styles = StyleSheet.create({
   },
   importButtonText: {
     color: 'black',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  pasteEmptyButton: {
+    backgroundColor: Colors.card,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  pasteEmptyButtonText: {
+    color: Colors.text,
     fontSize: 16,
     fontWeight: '700',
   },

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FilePlus, Library as LibraryIcon, Play, Trophy, Brain, ChevronRight } from 'lucide-react-native';
+import { FilePlus, ClipboardPaste, Library as LibraryIcon, Play, Trophy, Brain, ChevronRight } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Head from 'expo-router/head';
@@ -133,16 +133,32 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={[styles.actionCard, { backgroundColor: Colors.card }]}
-            onPress={() => router.navigate("/library")}
+            style={[styles.actionCard, { backgroundColor: Colors.card, borderColor: Colors.border }]}
+            onPress={() => router.push("/paste-import")}
           >
             <View style={[styles.actionIconContainer, { backgroundColor: '#262626' }]}>
-              <LibraryIcon color={Colors.primary} size={24} />
+              <ClipboardPaste color={Colors.primary} size={24} />
             </View>
-            <Text style={styles.actionTitle}>Library</Text>
-            <Text style={styles.actionSubtitle}>View all collections</Text>
+            <Text style={styles.actionTitle}>Paste Questions</Text>
+            <Text style={styles.actionSubtitle}>Paste AIKEN text</Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={styles.libraryShortcutCard}
+          onPress={() => router.navigate("/library")}
+        >
+          <View style={styles.continueContent}>
+            <View style={styles.libraryShortcutIcon}>
+              <LibraryIcon color={Colors.primary} size={20} />
+            </View>
+            <View style={styles.continueTextContainer}>
+              <Text style={styles.continueTitle}>Library</Text>
+              <Text style={styles.continueSubtitle}>View all collections</Text>
+            </View>
+          </View>
+          <ChevronRight color={Colors.textSecondary} size={24} />
+        </TouchableOpacity>
 
         {/* Continue Section */}
         <TouchableOpacity 
@@ -312,6 +328,25 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  libraryShortcutCard: {
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  libraryShortcutIcon: {
+    backgroundColor: '#262626',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   continueContent: {
     flexDirection: 'row',

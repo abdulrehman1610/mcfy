@@ -6,7 +6,12 @@ export interface PickedTextAsset {
 }
 
 const SESSION_STORAGE_PREFIX = "mcfy_pending_import:";
+const PASTE_URI_PREFIX = "paste://";
 const pendingImports = new Map<string, string>();
+
+export function createPasteImportUri(): string {
+  return `${PASTE_URI_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 /**
  * Reads plain text from a DocumentPicker asset across Web, iOS, and Android.
@@ -34,6 +39,10 @@ export async function readTextFromUri(uri: string): Promise<string> {
   const cached = getPendingImportContent(uri);
   if (cached !== null) {
     return cached;
+  }
+
+  if (uri.startsWith(PASTE_URI_PREFIX)) {
+    throw new Error("Pasted text session expired. Please paste your questions again.");
   }
 
   if (Platform.OS === "web") {
