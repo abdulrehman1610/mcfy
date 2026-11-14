@@ -30,7 +30,7 @@
       "package": "com.mcfy.app"
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png",
       "backgroundColor": "#000000"
     },
