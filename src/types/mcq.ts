@@ -1,13 +1,10 @@
+export type OptionKey = string;
+
 export type MCQ = {
   id: string;
   question: string;
-  options: {
-    A: string;
-    B: string;
-    C: string;
-    D: string;
-  };
-  correctAnswer: "A" | "B" | "C" | "D";
+  options: Record<OptionKey, string>;
+  correctAnswer: OptionKey;
 };
 
 export type QuizCollection = {

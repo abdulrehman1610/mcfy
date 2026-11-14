@@ -13,7 +13,7 @@ import Animated, {
 
 import { Colors, Spacing, BorderRadius, Layout } from '../../src/constants/theme';
 import { QuizStorage } from '../../src/storage/quizStorage';
-import { QuizCollection, MCQ } from '../../src/types/mcq';
+import { QuizCollection, MCQ, OptionKey } from '../../src/types/mcq';
 
 // Fisher-Yates Shuffle Algorithm
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -23,6 +23,16 @@ const shuffleArray = <T,>(array: T[]): T[] => {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
+};
+
+const getOptionKeys = (mcq: MCQ): OptionKey[] => Object.keys(mcq.options).sort();
+
+const buildShuffledOptionsMap = (mcqs: MCQ[]): Record<string, OptionKey[]> => {
+  const optionMap: Record<string, OptionKey[]> = {};
+  mcqs.forEach(mcq => {
+    optionMap[mcq.id] = shuffleArray(getOptionKeys(mcq));
+  });
+  return optionMap;
 };
 
 export default function PracticeScreen() {
@@ -38,9 +48,9 @@ export default function PracticeScreen() {
   
   const [quiz, setQuiz] = useState<QuizCollection | null>(null);
   const [sessionMcqs, setSessionMcqs] = useState<MCQ[]>([]);
-  const [shuffledOptionsMap, setShuffledOptionsMap] = useState<Record<string, ("A" | "B" | "C" | "D")[]>>({});
+  const [shuffledOptionsMap, setShuffledOptionsMap] = useState<Record<string, OptionKey[]>>({});
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedOption, setSelectedOption] = useState<"A" | "B" | "C" | "D" | null>(null);
+  const [selectedOption, setSelectedOption] = useState<OptionKey | null>(null);
   const [isLocked, setIsLocked] = useState(false);
 
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -113,11 +123,7 @@ export default function PracticeScreen() {
 
         // 5. Pre-generate shuffled options if requested
         if (shuffleAnswers === "true") {
-          const optionMap: Record<string, ("A" | "B" | "C" | "D")[]> = {};
-          targetMcqs.forEach(mcq => {
-            optionMap[mcq.id] = shuffleArray(["A", "B", "C", "D"] as ("A" | "B" | "C" | "D")[]);
-          });
-          setShuffledOptionsMap(optionMap);
+          setShuffledOptionsMap(buildShuffledOptionsMap(targetMcqs));
         } else {
           setShuffledOptionsMap({});
         }
@@ -173,7 +179,7 @@ export default function PracticeScreen() {
     return () => backHandler.remove();
   }, [handleExit]);
 
-  const handleOptionSelect = (option: "A" | "B" | "C" | "D") => {
+  const handleOptionSelect = (option: OptionKey) => {
     if (isLocked) return;
     
     setSelectedOption(option);
@@ -293,7 +299,7 @@ export default function PracticeScreen() {
   // Determine which options to show (shuffled or standard)
   const optionsToDisplay = (shuffleAnswers === "true" && shuffledOptionsMap[currentMCQ.id]) 
     ? shuffledOptionsMap[currentMCQ.id] 
-    : (["A", "B", "C", "D"] as ("A" | "B" | "C" | "D")[]);
+    : getOptionKeys(currentMCQ);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -340,11 +346,7 @@ export default function PracticeScreen() {
 
             // Re-shuffle options if requested
             if (shuffleAnswers === "true" && sessionMcqs.length > 0) {
-              const optionMap: Record<string, ("A" | "B" | "C" | "D")[]> = {};
-              sessionMcqs.forEach(mcq => {
-                optionMap[mcq.id] = shuffleArray(["A", "B", "C", "D"] as ("A" | "B" | "C" | "D")[]);
-              });
-              setShuffledOptionsMap(optionMap);
+              setShuffledOptionsMap(buildShuffledOptionsMap(sessionMcqs));
             }
 
             // Re-shuffle MCQs if requested
