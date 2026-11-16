@@ -164,9 +164,13 @@ const computePracticeLayout = (
   optionKeys: OptionKey[]
 ) => {
   const chrome = getChromeMetrics(height);
+  const inlineNextButton = Platform.OS === 'web' && width >= 768;
+  const inlineNextGap = inlineNextButton ? (height < 720 ? 14 : 20) : 0;
   const safeAreaBuffer = Platform.OS === 'web' ? 12 : 52;
   const headerH = chrome.headerIconSize + chrome.headerPaddingV * 2;
-  const footerH = chrome.nextBtnHeight + chrome.footerPaddingTop + chrome.footerPaddingBottom;
+  const footerH = inlineNextButton
+    ? chrome.nextBtnHeight + inlineNextGap
+    : chrome.nextBtnHeight + chrome.footerPaddingTop + chrome.footerPaddingBottom;
   const qLabelH = 16 + chrome.qHeaderMarginBottom;
   const availableBodyH = Math.max(
     200,
@@ -179,7 +183,7 @@ const computePracticeLayout = (
 
   for (const tier of BODY_DENSITY_TIERS) {
     if (estimateTierHeight(tier, innerWidth, mcq.question, optionTexts, false) <= availableBodyH) {
-      return { chrome, tier, twoColumnOptions: false };
+      return { chrome, tier, twoColumnOptions: false, inlineNextButton, inlineNextGap };
     }
   }
 
@@ -187,7 +191,7 @@ const computePracticeLayout = (
   if (canUseTwoColumns) {
     for (const tier of BODY_DENSITY_TIERS) {
       if (estimateTierHeight(tier, innerWidth, mcq.question, optionTexts, true) <= availableBodyH) {
-        return { chrome, tier, twoColumnOptions: true };
+        return { chrome, tier, twoColumnOptions: true, inlineNextButton, inlineNextGap };
       }
     }
   }
@@ -197,6 +201,8 @@ const computePracticeLayout = (
     chrome,
     tier: micro,
     twoColumnOptions: canUseTwoColumns,
+    inlineNextButton,
+    inlineNextGap,
   };
 };
 
@@ -468,12 +474,38 @@ export default function PracticeScreen() {
     : getOptionKeys(currentMCQ);
 
   const fitLayout = computePracticeLayout(width, height, currentMCQ, optionsToDisplay);
-  const { chrome, tier, twoColumnOptions } = fitLayout;
+  const { chrome, tier, twoColumnOptions, inlineNextButton, inlineNextGap } = fitLayout;
   const headerBtnSizeStyle = {
     width: chrome.headerIconSize,
     height: chrome.headerIconSize,
     borderRadius: chrome.headerIconSize / 2,
   };
+
+  const renderNextButton = (inline: boolean) => (
+    <TouchableOpacity
+      onPress={nextQuestion}
+      style={[
+        styles.nextBtn,
+        {
+          height: chrome.nextBtnHeight,
+          borderRadius: chrome.nextBtnHeight / 2,
+          marginTop: inline ? inlineNextGap : 0,
+        },
+        !isLocked && styles.disabledBtn,
+      ]}
+      disabled={!isLocked}
+    >
+      <Text
+        style={[
+          styles.nextBtnText,
+          { fontSize: chrome.nextBtnHeight < 50 ? 16 : 17 },
+        ]}
+      >
+        {currentIndex === sessionMcqs.length - 1 ? "Finish Quiz" : "Next Question"}
+      </Text>
+      <ChevronRight color="black" size={chrome.nextBtnHeight < 50 ? 18 : 20} />
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -678,43 +710,26 @@ export default function PracticeScreen() {
               );
             })}
           </View>
+
+          {inlineNextButton && renderNextButton(true)}
         </Animated.View>
       </ScrollView>
 
-      {/* Footer Navigation */}
-      <View
-        style={[
-          styles.footer,
-          {
-            paddingHorizontal: chrome.contentPaddingH,
-            paddingTop: chrome.footerPaddingTop,
-            paddingBottom: chrome.footerPaddingBottom,
-          },
-        ]}
-      >
-        <TouchableOpacity 
-          onPress={nextQuestion}
+      {/* Footer Navigation (mobile / narrow screens) */}
+      {!inlineNextButton && (
+        <View
           style={[
-            styles.nextBtn,
+            styles.footer,
             {
-              height: chrome.nextBtnHeight,
-              borderRadius: chrome.nextBtnHeight / 2,
+              paddingHorizontal: chrome.contentPaddingH,
+              paddingTop: chrome.footerPaddingTop,
+              paddingBottom: chrome.footerPaddingBottom,
             },
-            !isLocked && styles.disabledBtn,
           ]}
-          disabled={!isLocked}
         >
-          <Text
-            style={[
-              styles.nextBtnText,
-              { fontSize: chrome.nextBtnHeight < 50 ? 16 : 17 },
-            ]}
-          >
-            {currentIndex === sessionMcqs.length - 1 ? "Finish Quiz" : "Next Question"}
-          </Text>
-          <ChevronRight color="black" size={chrome.nextBtnHeight < 50 ? 18 : 20} />
-        </TouchableOpacity>
-      </View>
+          {renderNextButton(false)}
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -819,7 +834,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   nextBtn: {
-    flex: 1,
+    width: '100%',
     backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
