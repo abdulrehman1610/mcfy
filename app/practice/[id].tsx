@@ -209,9 +209,10 @@ const computePracticeLayout = (
 export default function PracticeScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
-  const { id, retryIds, limit, shuffleMcqs, shuffleAnswers, timeLimit } = useLocalSearchParams<{ 
+  const { id, retryIds, retryRound, limit, shuffleMcqs, shuffleAnswers, timeLimit } = useLocalSearchParams<{ 
     id: string; 
     retryIds?: string;
+    retryRound?: string;
     limit?: string;
     shuffleMcqs?: string;
     shuffleAnswers?: string;
@@ -409,10 +410,11 @@ export default function PracticeScreen() {
         quizId: quiz.id,
         wrongMcqIds: finalWrongIds.join(','),
         isRetryMode: retryIds ? "true" : "false",
+        retryRound: retryIds ? (retryRound || "1") : "0",
         timedOut: timedOut ? "true" : "false",
       }
     });
-  }, [quiz, sessionMcqs.length, retryIds, router]);
+  }, [quiz, sessionMcqs.length, retryIds, retryRound, router]);
 
   const nextQuestion = () => {
     if (currentIndex < sessionMcqs.length - 1) {
@@ -528,7 +530,9 @@ export default function PracticeScreen() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>
-            {retryIds ? "Retrying Mistakes" : quiz.name}
+            {retryIds
+              ? `Retrying Mistakes${retryRound && retryRound !== "1" ? ` · Round ${retryRound}` : ""}`
+              : quiz.name}
           </Text>
           <View style={styles.headerMetaRow}>
             <Text style={styles.headerProgress}>{currentIndex + 1} of {sessionMcqs.length}</Text>

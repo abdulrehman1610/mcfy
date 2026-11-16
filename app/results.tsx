@@ -20,6 +20,7 @@ export default function ResultsScreen() {
     quizId: string;
     wrongMcqIds: string;
     isRetryMode: string;
+    retryRound?: string;
     timedOut?: string;
   }>();
 
@@ -30,6 +31,9 @@ export default function ResultsScreen() {
   const wrongIds = params.wrongMcqIds ? params.wrongMcqIds.split(',').filter(Boolean) : [];
   const isRetryMode = params.isRetryMode === "true";
   const timedOut = params.timedOut === "true";
+  const retryRound = Math.max(1, parseInt(params.retryRound || "1", 10) || 1);
+  const allMistakesCleared = isRetryMode && wrongIds.length === 0 && total > 0;
+  const hasMistakes = wrongIds.length > 0;
   
   const minutes = Math.floor(time / 60);
   const seconds = Math.round(time % 60);
@@ -56,7 +60,18 @@ export default function ResultsScreen() {
         <Animated.View entering={FadeInUp.delay(400)} style={styles.headerText}>
           <Text style={styles.performanceMessage}>{getPerformanceMessage()}</Text>
           <Text style={styles.quizName}>{params.quizName}</Text>
-          {isRetryMode && <Text style={styles.retryNote}>Mistake Review Session</Text>}
+          {isRetryMode && (
+            <Text style={styles.retryNote}>
+              Mistake Review · Round {retryRound}
+            </Text>
+          )}
+          {allMistakesCleared && (
+            <Text style={styles.clearedNote}>
+              {retryRound === 1
+                ? "You fixed every mistake on the first retry 🎉"
+                : `You fixed every mistake in ${retryRound} rounds 🎉`}
+            </Text>
+          )}
           {timedOut && <Text style={styles.timeoutNote}>Time&apos;s Up — Auto-Submitted</Text>}
         </Animated.View>
 
@@ -97,16 +112,22 @@ export default function ResultsScreen() {
         </View>
 
         <View style={styles.actions}>
-          {!isRetryMode && wrongIds.length > 0 && (
+          {hasMistakes && (
             <TouchableOpacity 
               style={[styles.actionBtn, styles.retryMistakesBtn]}
               onPress={() => router.replace({
                 pathname: "/practice/[id]",
-                params: { id: params.quizId, retryIds: params.wrongMcqIds },
+                params: {
+                  id: params.quizId,
+                  retryIds: wrongIds.join(','),
+                  retryRound: String(isRetryMode ? retryRound + 1 : 1),
+                },
               })}
             >
               <AlertCircle color="black" size={20} />
-              <Text style={styles.retryMistakesBtnText}>Retry Mistakes ({wrongIds.length})</Text>
+              <Text style={styles.retryMistakesBtnText}>
+                {isRetryMode ? "Retry Remaining Mistakes" : "Retry Mistakes"} ({wrongIds.length})
+              </Text>
             </TouchableOpacity>
           )}
 
@@ -114,17 +135,17 @@ export default function ResultsScreen() {
             style={[
               styles.actionBtn, 
               styles.retryBtn,
-              (isRetryMode || wrongIds.length === 0) && { backgroundColor: Colors.primary, borderWidth: 0 }
+              !hasMistakes && { backgroundColor: Colors.primary, borderWidth: 0 }
             ]}
             onPress={() => router.replace({
               pathname: "/practice/[id]",
               params: { id: params.quizId },
             })}
           >
-            <RotateCcw color={isRetryMode || wrongIds.length === 0 ? "black" : Colors.text} size={20} />
+            <RotateCcw color={!hasMistakes ? "black" : Colors.text} size={20} />
             <Text style={[
               styles.retryBtnText, 
-              { color: isRetryMode || wrongIds.length === 0 ? "black" : Colors.text }
+              { color: !hasMistakes ? "black" : Colors.text }
             ]}>
               {isRetryMode ? "Practice All Questions" : "Retry Full Quiz"}
             </Text>
@@ -195,6 +216,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 8,
     textTransform: 'uppercase',
+  },
+  clearedNote: {
+    color: Colors.success,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 6,
+    textAlign: 'center',
   },
   timeoutNote: {
     color: Colors.error,
