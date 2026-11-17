@@ -10,6 +10,7 @@ import { Colors, Spacing, BorderRadius, Layout } from '../../src/constants/theme
 import { QuizStorage, UserStats } from '../../src/storage/quizStorage';
 import { parseAiken } from '../../src/utils/aikenParser';
 import { readTextFromAsset, setPendingImportContent } from '../../src/utils/fileReader';
+import { clearPracticeSessionConfig, setPendingImportPreview } from '../../src/storage/sessionState';
 import { showAppAlert } from '../../src/components/AlertProvider';
 import { QuizCollection } from '../../src/types/mcq';
 
@@ -58,14 +59,9 @@ export default function HomeScreen() {
       }
 
       setPendingImportContent(file.uri, content);
+      setPendingImportPreview({ uri: file.uri, name: file.name });
 
-      router.push({
-        pathname: "/import-preview",
-        params: { 
-          uri: file.uri, 
-          name: file.name,
-        }
-      });
+      router.push("/import-preview");
     } catch (error) {
       console.error("Import error:", error);
       showAppAlert("Error", "Failed to read the file. Please try again.");
@@ -74,6 +70,7 @@ export default function HomeScreen() {
 
   const handleContinue = () => {
     if (lastQuiz) {
+      clearPracticeSessionConfig();
       router.push({
         pathname: "/practice/[id]",
         params: { id: lastQuiz.id },

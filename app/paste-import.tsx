@@ -18,6 +18,7 @@ import { showAppAlert } from '../src/components/AlertProvider';
 import { BorderRadius, Colors, Layout, Spacing } from '../src/constants/theme';
 import { parseAiken } from '../src/utils/aikenParser';
 import { createPasteImportUri, setPendingImportContent } from '../src/utils/fileReader';
+import { setPendingImportPreview } from '../src/storage/sessionState';
 
 const SAMPLE_PLACEHOLDER = `Paste MCQs in AIKEN format...
 
@@ -82,15 +83,11 @@ export default function PasteImportScreen() {
     }
 
     const pasteUri = createPasteImportUri();
+    const collectionName = quizName.trim() || 'Pasted Quiz';
     setPendingImportContent(pasteUri, rawText);
+    setPendingImportPreview({ uri: pasteUri, name: collectionName });
 
-    router.push({
-      pathname: '/import-preview',
-      params: {
-        uri: pasteUri,
-        name: quizName.trim() || 'Pasted Quiz',
-      },
-    });
+    router.push('/import-preview');
   };
 
   return (

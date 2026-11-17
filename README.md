@@ -2,6 +2,7 @@
 
 **MCfy** is a cross-platform Multiple Choice Question (MCQ) practice application for **Web, Android, and iOS**, built with Expo (React Native) and Expo Router. Import or paste AIKEN-formatted question banks, customize practice sessions, review missed questions, and track accuracy—all with 100% local client-side storage.
 
+> **Live Web App:** [https://mcfy.vercel.app](https://mcfy.vercel.app)  
 > **Android Preview Build:** [Download APK via Expo](https://expo.dev/accounts/abdulrehman1610/projects/mcfy/builds/a8a8de0a-b52c-4ea6-9cbd-078cb823024a)
 
 ---
@@ -78,7 +79,7 @@ components/
 src/
 ├── components/           # Custom AlertProvider & LoadingScreen
 ├── constants/            # Shared Colors, Spacing, BorderRadius, Layout tokens
-├── storage/              # QuizStorage & UserStats persistence helpers
+├── storage/              # QuizStorage, UserStats & clean-URL sessionState helpers
 ├── types/                # QuizCollection, MCQ, OptionKey TypeScript definitions
 └── utils/                # AIKEN parser (parseAiken) & cross-platform file/paste reader
 public/

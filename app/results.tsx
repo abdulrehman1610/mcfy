@@ -7,31 +7,62 @@ import { Trophy, Home, RotateCcw, Clock, Target, CheckCircle2, XCircle, AlertCir
 import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
 
 import { Colors, Spacing, BorderRadius, Layout } from '../src/constants/theme';
+import {
+  clearPracticeSessionConfig,
+  getResultsSessionState,
+  setPracticeSessionConfig,
+} from '../src/storage/sessionState';
 
 export default function ResultsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ 
-    totalAttempted: string; 
-    correctAnswers: string; 
-    incorrectAnswers: string; 
-    accuracy: string; 
-    timeSpent: string;
-    quizName: string;
-    quizId: string;
-    wrongMcqIds: string;
-    isRetryMode: string;
+    totalAttempted?: string; 
+    correctAnswers?: string; 
+    incorrectAnswers?: string; 
+    accuracy?: string; 
+    timeSpent?: string;
+    quizName?: string;
+    quizId?: string;
+    wrongMcqIds?: string;
+    isRetryMode?: string;
     retryRound?: string;
     timedOut?: string;
   }>();
 
-  const total = parseInt(params.totalAttempted || "0", 10);
-  const correct = parseInt(params.correctAnswers || "0", 10);
-  const accuracy = parseFloat(params.accuracy || "0").toFixed(1);
-  const time = parseFloat(params.timeSpent || "0");
-  const wrongIds = params.wrongMcqIds ? params.wrongMcqIds.split(',').filter(Boolean) : [];
-  const isRetryMode = params.isRetryMode === "true";
-  const timedOut = params.timedOut === "true";
-  const retryRound = Math.max(1, parseInt(params.retryRound || "1", 10) || 1);
+  const storedResults = getResultsSessionState();
+  const hasUrlParams = params.totalAttempted !== undefined || params.quizId !== undefined;
+
+  const total = hasUrlParams
+    ? parseInt(params.totalAttempted || "0", 10)
+    : (storedResults?.totalAttempted ?? 0);
+  const correct = hasUrlParams
+    ? parseInt(params.correctAnswers || "0", 10)
+    : (storedResults?.correctAnswers ?? 0);
+  const accuracy = (
+    hasUrlParams
+      ? parseFloat(params.accuracy || "0")
+      : (storedResults?.accuracy ?? 0)
+  ).toFixed(1);
+  const time = hasUrlParams
+    ? parseFloat(params.timeSpent || "0")
+    : (storedResults?.timeSpent ?? 0);
+  const quizName = (hasUrlParams ? params.quizName : storedResults?.quizName) || "";
+  const quizId = (hasUrlParams ? params.quizId : storedResults?.quizId) || "";
+  const wrongIds = hasUrlParams
+    ? (params.wrongMcqIds ? params.wrongMcqIds.split(',').filter(Boolean) : [])
+    : (storedResults?.wrongMcqIds ?? []);
+  const isRetryMode = hasUrlParams
+    ? params.isRetryMode === "true"
+    : Boolean(storedResults?.isRetryMode);
+  const timedOut = hasUrlParams
+    ? params.timedOut === "true"
+    : Boolean(storedResults?.timedOut);
+  const retryRound = Math.max(
+    1,
+    hasUrlParams
+      ? (parseInt(params.retryRound || "1", 10) || 1)
+      : (storedResults?.retryRound || 1)
+  );
   const allMistakesCleared = isRetryMode && wrongIds.length === 0 && total > 0;
   const hasMistakes = wrongIds.length > 0;
   
@@ -59,7 +90,7 @@ export default function ResultsScreen() {
 
         <Animated.View entering={FadeInUp.delay(400)} style={styles.headerText}>
           <Text style={styles.performanceMessage}>{getPerformanceMessage()}</Text>
-          <Text style={styles.quizName}>{params.quizName}</Text>
+          <Text style={styles.quizName}>{quizName}</Text>
           {isRetryMode && (
             <Text style={styles.retryNote}>
               Mistake Review · Round {retryRound}
@@ -115,14 +146,17 @@ export default function ResultsScreen() {
           {hasMistakes && (
             <TouchableOpacity 
               style={[styles.actionBtn, styles.retryMistakesBtn]}
-              onPress={() => router.replace({
-                pathname: "/practice/[id]",
-                params: {
-                  id: params.quizId,
-                  retryIds: wrongIds.join(','),
-                  retryRound: String(isRetryMode ? retryRound + 1 : 1),
-                },
-              })}
+              onPress={() => {
+                setPracticeSessionConfig({
+                  quizId,
+                  retryIds: wrongIds,
+                  retryRound: isRetryMode ? retryRound + 1 : 1,
+                });
+                router.replace({
+                  pathname: "/practice/[id]",
+                  params: { id: quizId },
+                });
+              }}
             >
               <AlertCircle color="black" size={20} />
               <Text style={styles.retryMistakesBtnText}>
@@ -137,10 +171,13 @@ export default function ResultsScreen() {
               styles.retryBtn,
               !hasMistakes && { backgroundColor: Colors.primary, borderWidth: 0 }
             ]}
-            onPress={() => router.replace({
-              pathname: "/practice/[id]",
-              params: { id: params.quizId },
-            })}
+            onPress={() => {
+              clearPracticeSessionConfig();
+              router.replace({
+                pathname: "/practice/[id]",
+                params: { id: quizId },
+              });
+            }}
           >
             <RotateCcw color={!hasMistakes ? "black" : Colors.text} size={20} />
             <Text style={[

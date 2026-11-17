@@ -13,6 +13,11 @@ import Animated, {
 
 import { Colors, Spacing, BorderRadius, Layout } from '../../src/constants/theme';
 import { QuizStorage } from '../../src/storage/quizStorage';
+import {
+  clearPracticeSessionConfig,
+  getPracticeSessionConfig,
+  setResultsSessionState,
+} from '../../src/storage/sessionState';
 import { QuizCollection, MCQ, OptionKey } from '../../src/types/mcq';
 
 // Fisher-Yates Shuffle Algorithm
@@ -209,7 +214,7 @@ const computePracticeLayout = (
 export default function PracticeScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
-  const { id, retryIds, retryRound, limit, shuffleMcqs, shuffleAnswers, timeLimit } = useLocalSearchParams<{ 
+  const routeParams = useLocalSearchParams<{ 
     id: string; 
     retryIds?: string;
     retryRound?: string;
@@ -218,6 +223,36 @@ export default function PracticeScreen() {
     shuffleAnswers?: string;
     timeLimit?: string;
   }>();
+  const id = routeParams.id;
+  const sessionConfig = getPracticeSessionConfig(id);
+  const retryIds =
+    routeParams.retryIds ??
+    (sessionConfig?.retryIds && sessionConfig.retryIds.length > 0
+      ? sessionConfig.retryIds.join(',')
+      : undefined);
+  const retryRound =
+    routeParams.retryRound ??
+    (sessionConfig?.retryRound !== undefined ? String(sessionConfig.retryRound) : undefined);
+  const limit =
+    routeParams.limit ??
+    (sessionConfig?.limit !== undefined ? String(sessionConfig.limit) : undefined);
+  const shuffleMcqs =
+    routeParams.shuffleMcqs ??
+    (sessionConfig?.shuffleMcqs !== undefined
+      ? sessionConfig.shuffleMcqs
+        ? 'true'
+        : 'false'
+      : undefined);
+  const shuffleAnswers =
+    routeParams.shuffleAnswers ??
+    (sessionConfig?.shuffleAnswers !== undefined
+      ? sessionConfig.shuffleAnswers
+        ? 'true'
+        : 'false'
+      : undefined);
+  const timeLimit =
+    routeParams.timeLimit ??
+    (sessionConfig?.timeLimit !== undefined ? String(sessionConfig.timeLimit) : undefined);
   
   const [quiz, setQuiz] = useState<QuizCollection | null>(null);
   const [sessionMcqs, setSessionMcqs] = useState<MCQ[]>([]);
@@ -235,6 +270,7 @@ export default function PracticeScreen() {
   const hasFinishedRef = useRef(false);
 
   const goBackOrHome = useCallback(() => {
+    clearPracticeSessionConfig();
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -398,22 +434,22 @@ export default function PracticeScreen() {
       });
     }
 
-    router.replace({
-      pathname: "/results",
-      params: { 
-        totalAttempted: String(result.totalAttempted),
-        correctAnswers: String(result.correctAnswers),
-        incorrectAnswers: String(result.incorrectAnswers),
-        accuracy: String(result.accuracy),
-        timeSpent: String(result.timeSpent),
-        quizName: quiz.name,
-        quizId: quiz.id,
-        wrongMcqIds: finalWrongIds.join(','),
-        isRetryMode: retryIds ? "true" : "false",
-        retryRound: retryIds ? (retryRound || "1") : "0",
-        timedOut: timedOut ? "true" : "false",
-      }
+    setResultsSessionState({
+      totalAttempted: result.totalAttempted,
+      correctAnswers: result.correctAnswers,
+      incorrectAnswers: result.incorrectAnswers,
+      accuracy: result.accuracy,
+      timeSpent: result.timeSpent,
+      quizName: quiz.name,
+      quizId: quiz.id,
+      wrongMcqIds: finalWrongIds,
+      isRetryMode: Boolean(retryIds),
+      retryRound: retryIds ? Math.max(1, parseInt(retryRound || "1", 10) || 1) : 0,
+      timedOut,
     });
+    clearPracticeSessionConfig();
+
+    router.replace("/results");
   }, [quiz, sessionMcqs.length, retryIds, retryRound, router]);
 
   const nextQuestion = () => {

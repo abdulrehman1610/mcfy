@@ -9,12 +9,16 @@ import { Colors, Spacing, BorderRadius, Layout } from '../src/constants/theme';
 import { parseAiken } from '../src/utils/aikenParser';
 import { QuizStorage } from '../src/storage/quizStorage';
 import { clearPendingImportContent, readTextFromUri } from '../src/utils/fileReader';
+import { clearPendingImportPreview, getPendingImportPreview } from '../src/storage/sessionState';
 import { showAppAlert } from '../src/components/AlertProvider';
 import { MCQ, QuizCollection } from '../src/types/mcq';
 
 export default function ImportPreviewScreen() {
   const router = useRouter();
-  const { uri, name } = useLocalSearchParams<{ uri?: string; name?: string }>();
+  const routeParams = useLocalSearchParams<{ uri?: string; name?: string }>();
+  const previewSession = getPendingImportPreview();
+  const uri = routeParams.uri || previewSession?.uri;
+  const name = routeParams.name || previewSession?.name;
   
   const [quizName, setQuizName] = useState(name?.replace(/\.txt$/i, '') || "My Quiz");
   const [mcqs, setMcqs] = useState<MCQ[]>([]);
@@ -51,6 +55,7 @@ export default function ImportPreviewScreen() {
     if (uri) {
       clearPendingImportContent(uri);
     }
+    clearPendingImportPreview();
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -84,6 +89,7 @@ export default function ImportPreviewScreen() {
       if (uri) {
         clearPendingImportContent(uri);
       }
+      clearPendingImportPreview();
       showAppAlert("Success", "Quiz saved to your library!", [
         {
           text: "OK",

@@ -7,6 +7,7 @@ import { Trash2, Calendar, BookOpen, ChevronRight, Shuffle, Check, Clock } from 
 
 import { Colors, Spacing, BorderRadius, Layout } from '../../src/constants/theme';
 import { QuizStorage } from '../../src/storage/quizStorage';
+import { setPracticeSessionConfig } from '../../src/storage/sessionState';
 import { showAppAlert } from '../../src/components/AlertProvider';
 import { QuizCollection } from '../../src/types/mcq';
 
@@ -65,15 +66,16 @@ export default function LibraryScreen() {
     }
 
     setSetupModalVisible(false);
+    setPracticeSessionConfig({
+      quizId: selectedQuiz.id,
+      limit: finalCount,
+      shuffleMcqs,
+      shuffleAnswers,
+      timeLimit: finalTimeLimit,
+    });
     router.push({
       pathname: "/practice/[id]",
-      params: { 
-        id: selectedQuiz.id,
-        limit: String(finalCount),
-        shuffleMcqs: shuffleMcqs ? "true" : "false",
-        shuffleAnswers: shuffleAnswers ? "true" : "false",
-        timeLimit: String(finalTimeLimit)
-      }
+      params: { id: selectedQuiz.id },
     });
   };
 
