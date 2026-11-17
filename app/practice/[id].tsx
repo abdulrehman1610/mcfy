@@ -546,7 +546,7 @@ export default function PracticeScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, inlineNextButton && styles.containerDesktop]}>
+    <SafeAreaView style={styles.container}>
       <Head>
         <title>{retryIds ? 'Retrying Mistakes — MCfy' : `${quiz.name} — MCfy`}</title>
       </Head>
@@ -627,10 +627,9 @@ export default function PracticeScreen() {
 
       {/* Question Card */}
       <ScrollView
-        style={inlineNextButton ? styles.mainDesktop : styles.main}
+        style={styles.main}
         contentContainerStyle={[
           styles.mainContent,
-          inlineNextButton && styles.mainContentDesktop,
           { paddingHorizontal: chrome.contentPaddingH, paddingVertical: chrome.contentPaddingV },
         ]}
         showsVerticalScrollIndicator={false}
@@ -639,7 +638,7 @@ export default function PracticeScreen() {
           key={currentIndex}
           entering={FadeInRight.duration(350)}
           exiting={Platform.OS === 'web' ? undefined : FadeOutLeft.duration(350)}
-          style={inlineNextButton ? undefined : styles.questionCard}
+          style={styles.questionCard}
         >
           <View style={[styles.qHeader, { marginBottom: chrome.qHeaderMarginBottom }]}>
             <Text style={styles.qLabel}>Question {currentIndex + 1}</Text>
@@ -780,9 +779,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  containerDesktop: {
-    justifyContent: 'center',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -828,19 +824,11 @@ const styles = StyleSheet.create({
   main: {
     flex: 1,
   },
-  mainDesktop: {
-    flexGrow: 0,
-    flexShrink: 1,
-    width: '100%',
-  },
   mainContent: {
     width: '100%',
     maxWidth: Layout.maxContentWidth,
     alignSelf: 'center',
     flexGrow: 1,
-  },
-  mainContentDesktop: {
-    flexGrow: 0,
   },
   questionCard: {
     flex: 1,
