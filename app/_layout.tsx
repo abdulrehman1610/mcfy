@@ -1,4 +1,5 @@
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import { Analytics } from '@vercel/analytics/react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
@@ -90,6 +91,10 @@ export default function RootLayout() {
           </Stack>
         </View>
       </AlertProvider>
+      {Platform.OS === 'web' &&
+        typeof window !== 'undefined' &&
+        window.location.hostname !== 'localhost' &&
+        window.location.hostname !== '127.0.0.1' && <Analytics />}
       <StatusBar style="light" />
     </ThemeProvider>
   );
